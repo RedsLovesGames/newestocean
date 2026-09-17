@@ -9,9 +9,13 @@ import com.redslovesgames.newestocean.physics.AdaptiveHullProfile;
 import com.redslovesgames.newestocean.physics.OceanVesselPose;
 import com.redslovesgames.newestocean.physics.VesselMotionController;
 import com.redslovesgames.newestocean.physics.VesselPhysics;
+import com.redslovesgames.newestocean.physics.VesselPhysicsLod;
 import com.redslovesgames.newestocean.physics.VesselReentryDynamics;
 import com.redslovesgames.newestocean.physics.VesselWaveRidingDynamics;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.vehicle.BoatEntity;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
@@ -22,6 +26,7 @@ final class BoatPhysicsSupport {
     private static final double TICK_SECONDS = 1.0 / 20.0;
     private static final double BLOCKS_PER_SECOND_TO_BLOCKS_PER_TICK = 1.0 / 20.0;
     private static final Map<BoatEntity, VesselMotionController.State> MOTION_STATES = new WeakHashMap<>();
+    private static final Map<BoatEntity, LodRuntime> LOD_STATES = new WeakHashMap<>();
 
     private BoatPhysicsSupport() {
     }
@@ -35,6 +40,7 @@ final class BoatPhysicsSupport {
             boat,
             VesselMotionController.State.initial()
         );
+        LodRuntime lod = LOD_STATES.computeIfAbsent(boat, ignored -> new LodRuntime());
 
         if (!boat.isTouchingWater()) {
             VesselMotionController.State next = VesselMotionController.advance(
@@ -42,6 +48,28 @@ final class BoatPhysicsSupport {
                 new VesselMotionController.Input(0.0, verticalVelocityPerSecond(boat), 0.0, horizontalSpeedPerSecond(boat))
             );
             MOTION_STATES.put(boat, next);
+            lod.force.snap(Vec3.ZERO);
+            lod.hasSample = false;
+            return;
+        }
+
+        int solveInterval = VesselPhysicsLod.updateIntervalTicks(
+            nearestPlayerDistance(boat),
+            hasPlayerPassenger(boat),
+            previous.mode()
+        );
+        long worldTick = boat.getWorld().getTime();
+        boolean solveNow = !lod.hasSample
+            || VesselPhysicsLod.isSolveTick(worldTick, boat.getId(), solveInterval);
+
+        if (!solveNow) {
+            MOTION_STATES.put(
+                boat,
+                new VesselMotionController.State(previous.mode(), previous.ticksInMode() + 1)
+            );
+            if (previous.allowWaterForces()) {
+                applyForceCorrection(boat, lod.force.next(), profile.parameters());
+            }
             return;
         }
 
@@ -57,8 +85,10 @@ final class BoatPhysicsSupport {
             )
         );
         MOTION_STATES.put(boat, next);
+        lod.hasSample = true;
 
         if (!next.allowWaterForces()) {
+            lod.force.snap(Vec3.ZERO);
             return;
         }
 
@@ -101,7 +131,12 @@ final class BoatPhysicsSupport {
         if (!next.allowDownwardWaterForce() && force.y() < 0.0) {
             force = new Vec3(force.x(), 0.0, force.z());
         }
-        applyForceCorrection(boat, force, profile.parameters());
+
+        int interpolationTicks = next.mode() == VesselMotionController.Mode.DISPLACEMENT
+            ? solveInterval
+            : 1;
+        lod.force.retarget(force, interpolationTicks);
+        applyForceCorrection(boat, lod.force.next(), profile.parameters());
     }
 
     static Correction solveCorrection(BoatEntity boat, AdaptiveHullProfile.Profile profile) {
@@ -182,6 +217,33 @@ final class BoatPhysicsSupport {
         );
     }
 
+    private static double nearestPlayerDistance(BoatEntity boat) {
+        if (!(boat.getWorld() instanceof ServerWorld world)) {
+            return Double.POSITIVE_INFINITY;
+        }
+
+        double nearestSquared = Double.POSITIVE_INFINITY;
+        for (ServerPlayerEntity player : world.getPlayers()) {
+            if (player.isSpectator()) {
+                continue;
+            }
+            double dx = player.getX() - boat.getX();
+            double dy = player.getY() - boat.getY();
+            double dz = player.getZ() - boat.getZ();
+            nearestSquared = Math.min(nearestSquared, dx * dx + dy * dy + dz * dz);
+        }
+        return Math.sqrt(nearestSquared);
+    }
+
+    private static boolean hasPlayerPassenger(BoatEntity boat) {
+        for (var passenger : boat.getPassengerList()) {
+            if (passenger instanceof PlayerEntity) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static Vec3 velocityPerSecond(BoatEntity boat) {
         Vec3d velocity = boat.getVelocity();
         return new Vec3(velocity.x * 20.0, velocity.y * 20.0, velocity.z * 20.0);
@@ -211,6 +273,11 @@ final class BoatPhysicsSupport {
             velocityPerSecond(boat),
             Vec3.ZERO
         );
+    }
+
+    private static final class LodRuntime {
+        private final VesselPhysicsLod.ForceInterpolator force = new VesselPhysicsLod.ForceInterpolator();
+        private boolean hasSample;
     }
 
     record Correction(
