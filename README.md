@@ -56,7 +56,22 @@ Phase 3 prevents vessels from being glued to the wave surface after a crest:
 - Descending vessels transition to re-contact only after the hull actually regains water support.
 - Vanilla boats and Small Ships share the same motion-state runtime.
 
-Phase 4 owns progressive impact damping, angular stabilization, and anti-flip tuning during re-entry.
+## Phase 4: progressive re-entry and anti-flip stability
+
+Phase 4 makes water re-entry heavy and stable without hard-locking vessel orientation:
+
+- Re-contact uses a smooth wetting curve, so first hull contact receives only a fraction of the full water correction instead of an instant force spike.
+- Hard vertical slam correction is capped by vessel mass to prevent single-tick bounce launches.
+- Impact severity is measured from vessel velocity relative to the moving water surface for later splash, sound, and damage effects.
+- Raw wave torque is blended with restoring pitch and roll torque rather than replacing physical wave response.
+- Angular damping suppresses runaway rotational energy while still allowing real capsizing forces to win.
+- Rotational inertia scales from hull mass, beam, and length, so large ships rotate much more slowly than small boats.
+- A hull-scaled torque ceiling blocks pathological one-tick cartwheel impulses without imposing a fixed maximum roll angle.
+- The common solver exposes stabilized torque and angular acceleration for vessel adapters and render integration that support true pitch and roll.
+- The shared vanilla/Small Ships runtime applies progressive re-entry force shaping immediately.
+- Unit tests cover first-contact wetting, hard-impact force caps, restoring torque direction, hull-size angular inertia, torque spike limits, and normal displacement behavior.
+
+Newest Ocean intentionally does not use a rule such as `roll > 30 degrees -> force roll back to 30 degrees`. Stability comes from forces, inertia, damping, and capped impulses.
 
 ## Current implementation
 
@@ -65,6 +80,7 @@ The `feature/ocean-core` branch currently contains:
 - Phase 1 deterministic ocean core.
 - Phase 2 shared vessel physics foundation.
 - Phase 3 launch/airborne/re-contact state system.
+- Phase 4 progressive re-entry and passive angular stability system.
 - Vanilla boat wave-force correction.
 - Optional Small Ships tracking and size-scaled physics integration.
 - Vessel pose sampling from the same ocean surface.
@@ -91,7 +107,7 @@ Vessel physics
   -> Small Ships
   -> detailed water contact
   -> launch / airborne glide / re-contact
-  -> re-entry stabilization
+  -> progressive re-entry / angular stability
   -> surfing / planing
 
 Renderer
