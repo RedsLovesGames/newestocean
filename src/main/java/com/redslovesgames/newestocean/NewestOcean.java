@@ -1,6 +1,7 @@
 package com.redslovesgames.newestocean;
 
 import com.redslovesgames.newestocean.minecraft.SmallShipsIntegration;
+import com.redslovesgames.newestocean.network.OceanNetworking;
 import com.redslovesgames.newestocean.ocean.ProceduralOcean;
 import net.fabricmc.api.ModInitializer;
 import org.slf4j.Logger;
@@ -14,6 +15,7 @@ public final class NewestOcean implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        OceanNetworking.registerServer();
         SmallShipsIntegration.register();
         LOGGER.info("Newest Ocean initialized with {} deterministic physical wave components.", ocean.componentCount());
     }
