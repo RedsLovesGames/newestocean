@@ -12,13 +12,12 @@ public final class VanillaBoatPhysics {
     }
 
     public static void tick(BoatEntity boat) {
-        if (boat.getWorld().isClient() || !boat.isTouchingWater() || !isVanillaBoat(boat)) {
+        if (boat.getWorld().isClient() || !isVanillaBoat(boat)) {
             return;
         }
 
         AdaptiveHullProfile.Profile profile = profileFor(boat);
-        BoatPhysicsSupport.Correction correction = BoatPhysicsSupport.solveCorrection(boat, profile);
-        BoatPhysicsSupport.applyForceCorrection(boat, correction.force(), profile.parameters());
+        BoatPhysicsSupport.tick(boat, profile);
     }
 
     private static AdaptiveHullProfile.Profile profileFor(BoatEntity boat) {
