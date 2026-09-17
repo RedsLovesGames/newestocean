@@ -89,6 +89,14 @@ public final class ProceduralOcean implements OceanSurface {
         if (componentLimit < 1 || componentLimit > components.size()) {
             throw new IllegalArgumentException("componentLimit must be between 1 and " + components.size());
         }
+        if (conditions.waveScale() == 0.0) {
+            return new SurfaceSample(
+                conditions.tideOffset(),
+                Vec3.UP,
+                conditions.current(),
+                Vec3.ZERO
+            );
+        }
 
         double height = conditions.tideOffset();
         double slopeX = 0.0;
