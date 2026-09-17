@@ -66,11 +66,28 @@ public final class ProceduralOcean implements OceanSurface {
 
     @Override
     public SurfaceSample sample(double x, double z, double timeSeconds, OceanConditions conditions) {
+        return sample(x, z, timeSeconds, conditions, components.size());
+    }
+
+    /**
+     * Samples only the largest {@code componentLimit} waves. Physical simulation should use the
+     * four-argument overload, while rendering may lower this value on weaker hardware.
+     */
+    public SurfaceSample sample(
+        double x,
+        double z,
+        double timeSeconds,
+        OceanConditions conditions,
+        int componentLimit
+    ) {
         if (!Double.isFinite(x) || !Double.isFinite(z) || !Double.isFinite(timeSeconds)) {
             throw new IllegalArgumentException("sample coordinates and time must be finite");
         }
         if (conditions == null) {
             throw new IllegalArgumentException("conditions cannot be null");
+        }
+        if (componentLimit < 1 || componentLimit > components.size()) {
+            throw new IllegalArgumentException("componentLimit must be between 1 and " + components.size());
         }
 
         double height = conditions.tideOffset();
@@ -82,7 +99,8 @@ public final class ProceduralOcean implements OceanSurface {
         double velocityY = conditions.current().y();
         double velocityZ = conditions.current().z();
 
-        for (WaveComponent wave : components) {
+        for (int i = 0; i < componentLimit; i++) {
+            WaveComponent wave = components.get(i);
             double amplitude = wave.amplitude() * conditions.waveScale();
             double k = wave.waveNumber();
             double theta = k * (wave.directionX() * x + wave.directionZ() * z)
