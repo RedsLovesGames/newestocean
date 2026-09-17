@@ -103,6 +103,36 @@ Phase 6 makes the deterministic ocean safe across dedicated servers, singleplaye
 
 The networking cost remains one tiny seed payload per play connection. Mesh vertices, wave samples, vessel forces, and ongoing ocean animation are never networked.
 
+## Phase 7: ocean LOD mesh architecture
+
+Phase 7 provides the reusable visual topology used by the renderer:
+
+- Three camera-centered square LOD regions use dense near cells and progressively coarser middle/far cells.
+- The rings are true annular strips rather than overlapping complete grids, avoiding hidden duplicate geometry.
+- The camera origin snaps to the far-grid spacing so small camera movement does not rebuild topology.
+- Topology is local/camera-independent and cached by visual quality tier.
+- Shared coordinates are deduplicated across LOD regions.
+- Water coverage is classified separately from topology, allowing shoreline index filtering without rebuilding connectivity.
+- CPU mesh generation applies the same synchronized deterministic wave height, horizontal displacement, and normals used by physics.
+- Quality-tier vertex budgets are substantially lower than equivalent full-resolution uniform grids.
+
+## Phase 8: first visible synchronized ocean
+
+Phase 8 connects the deterministic LOD ocean to Minecraft's world renderer:
+
+- The renderer registers through Fabric `WorldRenderEvents.AFTER_TRANSLUCENT`.
+- Rendering is disabled until the current client play connection has received its synchronized ocean seed.
+- Render-frame preparation uses synchronized world time with tick interpolation, Minecraft rain/thunder state, tide/current conditions, and the current visual wave budget.
+- LOD topology is reused from Phase 7 and translated relative to the active camera.
+- Sea-level water cells are discovered from the actual client world fluid state and cached by snapped mesh origin, quality tier, and dimension.
+- Coverage refreshes periodically so nearby water edits can eventually update without per-frame block/fluid probing.
+- Only water cells emit visible geometry; land cells do not receive ocean quads.
+- The current Phase 8 renderer uses Minecraft's built-in translucent position/color debug-quad layer as a deliberately temporary, shader-free proof path.
+- Surface color is lightly modulated from the deterministic wave normals so the first visible mesh has readable moving shape.
+- Unit tests cover synchronization gating, interpolated render time, LOD-frame preparation, and shared weather/environment inputs.
+
+Phase 8 intentionally remains a CPU-displaced proof renderer. Phase 9 replaces this temporary draw layer with the dedicated GPU displacement/shader path without changing authoritative physics.
+
 ## Current implementation
 
 The `feature/ocean-core` branch currently contains:
@@ -113,13 +143,12 @@ The `feature/ocean-core` branch currently contains:
 - Phase 4 progressive re-entry and passive angular stability system.
 - Phase 5 surfing and hull-specific planing dynamics.
 - Phase 6 hardened logical server/client ocean synchronization.
+- Phase 7 cached concentric LOD ocean topology and water masking.
+- Phase 8 first visible synchronized CPU ocean renderer.
 - Vanilla boat wave-force correction.
 - Optional Small Ships tracking and size-scaled physics integration.
 - Vessel pose sampling from the same ocean surface.
 - Visual quality tiers and adaptive-quality controller foundations.
-- Camera-centered ocean mesh planning.
-- CPU-side displaced ocean mesh generation and normals.
-- Cached water-coverage masks for future shoreline-safe rendering.
 - Java 21 / Fabric 1.21.1 CI.
 
 ## Planned architecture
@@ -132,7 +161,10 @@ Deterministic ocean state
   -> currents
       -> authoritative server ocean
       -> synchronized client reconstruction
-          -> client ocean renderer
+          -> cached concentric LOD topology
+          -> cached water coverage
+          -> visible Phase 8 CPU ocean
+          -> Phase 9 GPU ocean
 
 Vessel physics
   -> shared hull profiles
@@ -145,6 +177,7 @@ Vessel physics
 
 Renderer
   -> camera-centered LOD mesh
+  -> visible synchronized CPU proof path
   -> GPU displacement
   -> foam / wakes / shoreline effects
 ```
