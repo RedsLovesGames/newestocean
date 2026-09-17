@@ -5,6 +5,7 @@ package com.redslovesgames.newestocean.physics;
  * independently from Minecraft entity plumbing.
  */
 public final class VesselMotionController {
+    private static final double LAUNCH_CONTACT_MIN = 0.08;
     private static final double LAUNCH_CONTACT_MAX = 0.45;
     private static final double LAUNCH_RELATIVE_UP_SPEED = 0.90;
     private static final double LAUNCH_FORWARD_SPEED = 0.60;
@@ -25,7 +26,8 @@ public final class VesselMotionController {
 
         switch (previous.mode()) {
             case DISPLACEMENT -> {
-                if (input.contactFraction() <= LAUNCH_CONTACT_MAX
+                if (input.contactFraction() >= LAUNCH_CONTACT_MIN
+                    && input.contactFraction() <= LAUNCH_CONTACT_MAX
                     && relativeVertical >= LAUNCH_RELATIVE_UP_SPEED
                     && input.forwardSpeed() >= LAUNCH_FORWARD_SPEED) {
                     next = Mode.LAUNCHING;
