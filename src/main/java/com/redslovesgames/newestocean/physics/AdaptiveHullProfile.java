@@ -51,6 +51,7 @@ public final class AdaptiveHullProfile {
         double horizontalDrag = lerp(1.15, 0.72, size01);
         double normalInfluence = lerp(0.18, 0.12, size01);
         double maxAcceleration = lerp(24.0, 10.0, size01);
+        double planingFactor = lerp(1.0, 0.18, size01);
 
         VesselPhysics.Parameters parameters = new VesselPhysics.Parameters(
             mass,
@@ -61,7 +62,7 @@ public final class AdaptiveHullProfile {
             normalInfluence,
             maxAcceleration
         );
-        return new Profile(points, parameters, safeBeam, safeLength);
+        return new Profile(points, parameters, safeBeam, safeLength, planingFactor);
     }
 
     private static int choosePointCount(double area, double length) {
@@ -97,12 +98,16 @@ public final class AdaptiveHullProfile {
         List<VesselPhysics.BuoyancyPoint> points,
         VesselPhysics.Parameters parameters,
         double beam,
-        double length
+        double length,
+        double planingFactor
     ) {
         public Profile {
             points = List.copyOf(points);
             if (points.isEmpty() || parameters == null) {
                 throw new IllegalArgumentException("profile requires buoyancy points and parameters");
+            }
+            if (!Double.isFinite(planingFactor) || planingFactor < 0.0 || planingFactor > 1.0) {
+                throw new IllegalArgumentException("planingFactor must be between 0 and 1");
             }
         }
     }
