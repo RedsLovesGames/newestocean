@@ -5,7 +5,6 @@ import com.redslovesgames.newestocean.math.Vec3;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.registry.tag.FluidTags;
@@ -31,7 +30,7 @@ public final class OceanWorldRenderer {
     }
 
     public static void register() {
-        WorldRenderEvents.AFTER_TRANSLUCENT.register(OceanWorldRenderer::render);
+        WorldRenderEvents.AFTER_ENTITIES.register(OceanWorldRenderer::render);
     }
 
     public static OceanQuality quality() {
@@ -42,7 +41,10 @@ public final class OceanWorldRenderer {
         if (newQuality == null) {
             throw new IllegalArgumentException("quality is required");
         }
-        quality = newQuality;
+        if (quality != newQuality) {
+            quality = newQuality;
+            reset();
+        }
     }
 
     public static void reset() {
@@ -56,7 +58,10 @@ public final class OceanWorldRenderer {
 
     private static void render(WorldRenderContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (!NewestOceanClient.isOceanSynchronized() || client.world == null || context.matrixStack() == null) {
+        if (!NewestOceanClient.isOceanSynchronized()
+            || client.world == null
+            || context.matrixStack() == null
+            || context.consumers() == null) {
             return;
         }
 
@@ -124,10 +129,8 @@ public final class OceanWorldRenderer {
 
     private static void draw(WorldRenderContext context, Vec3d camera, OceanLodMeshGenerator.Mesh mesh) {
         MatrixStack matrices = context.matrixStack();
-        matrices.push();
-        matrices.translate(-camera.x, -camera.y, -camera.z);
         Matrix4f matrix = matrices.peek().getPositionMatrix();
-        VertexConsumer vertices = context.consumers().getBuffer(RenderLayer.getDebugQuads());
+        VertexConsumer vertices = context.consumers().getBuffer(OceanRenderLayer.INSTANCE);
 
         OceanLodMeshGenerator.Vertex[] meshVertices = mesh.vertices();
         int[] indices = mesh.indices();
@@ -148,25 +151,28 @@ public final class OceanWorldRenderer {
             float blue = 0.58F * light;
             float alpha = 0.72F;
 
-            emit(vertices, matrix, topLeft, red, green, blue, alpha);
-            emit(vertices, matrix, bottomLeft, red, green, blue, alpha);
-            emit(vertices, matrix, bottomRight, red, green, blue, alpha);
-            emit(vertices, matrix, topRight, red, green, blue, alpha);
+            emit(vertices, matrix, camera, topLeft, red, green, blue, alpha);
+            emit(vertices, matrix, camera, bottomLeft, red, green, blue, alpha);
+            emit(vertices, matrix, camera, bottomRight, red, green, blue, alpha);
+            emit(vertices, matrix, camera, topRight, red, green, blue, alpha);
         }
-
-        matrices.pop();
     }
 
     private static void emit(
         VertexConsumer consumer,
         Matrix4f matrix,
+        Vec3d camera,
         OceanLodMeshGenerator.Vertex vertex,
         float red,
         float green,
         float blue,
         float alpha
     ) {
-        consumer.vertex(matrix, (float) vertex.x(), (float) vertex.y(), (float) vertex.z())
+        OceanRenderCoordinates.Relative relative = OceanRenderCoordinates.relative(
+            vertex.x(), vertex.y(), vertex.z(),
+            camera.x, camera.y, camera.z
+        );
+        consumer.vertex(matrix, (float) relative.x(), (float) relative.y(), (float) relative.z())
             .color(red, green, blue, alpha);
     }
 }
