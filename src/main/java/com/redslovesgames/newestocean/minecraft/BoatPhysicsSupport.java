@@ -5,12 +5,12 @@ import com.redslovesgames.newestocean.math.Vec3;
 import com.redslovesgames.newestocean.ocean.OceanConditions;
 import com.redslovesgames.newestocean.ocean.OceanEnvironment;
 import com.redslovesgames.newestocean.ocean.OceanSurface;
+import com.redslovesgames.newestocean.physics.AdaptiveHullProfile;
+import com.redslovesgames.newestocean.physics.OceanVesselPose;
 import com.redslovesgames.newestocean.physics.VesselPhysics;
 import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
-
-import java.util.List;
 
 final class BoatPhysicsSupport {
     private static final double TICK_SECONDS = 1.0 / 20.0;
@@ -19,11 +19,7 @@ final class BoatPhysicsSupport {
     private BoatPhysicsSupport() {
     }
 
-    static Correction solveCorrection(
-        BoatEntity boat,
-        List<VesselPhysics.BuoyancyPoint> points,
-        VesselPhysics.Parameters parameters
-    ) {
+    static Correction solveCorrection(BoatEntity boat, AdaptiveHullProfile.Profile profile) {
         double baseWaterHeight = boat.getWaterHeightBelow();
         if (!Double.isFinite(baseWaterHeight)) {
             return Correction.ZERO;
@@ -31,25 +27,24 @@ final class BoatPhysicsSupport {
 
         World world = boat.getWorld();
         double timeSeconds = world.getTime() * TICK_SECONDS;
-        OceanSurface ocean = NewestOcean.ocean();
-        long oceanSeed = NewestOcean.ocean().seed();
-
         OceanConditions dynamicConditions = OceanEnvironment.conditions(
-            oceanSeed,
-            baseWaterHeight,
+            NewestOcean.oceanSeed(),
             timeSeconds,
             world.getRainGradient(1.0F),
-            world.getThunderGradient(1.0F)
+            world.getThunderGradient(1.0F),
+            baseWaterHeight
         );
         OceanConditions flatConditions = new OceanConditions(0.0, baseWaterHeight, Vec3.ZERO);
         VesselPhysics.State state = capture(boat);
+        OceanSurface ocean = NewestOcean.ocean();
+        VesselPhysics.Parameters parameters = profile.parameters();
 
         VesselPhysics.Result dynamic = VesselPhysics.solve(
             ocean,
             dynamicConditions,
             timeSeconds,
             state,
-            points,
+            profile.points(),
             parameters
         );
         VesselPhysics.Result flat = VesselPhysics.solve(
@@ -57,14 +52,26 @@ final class BoatPhysicsSupport {
             flatConditions,
             timeSeconds,
             state,
-            points,
+            profile.points(),
             parameters
+        );
+
+        double yawRadians = Math.toRadians(-boat.getYaw());
+        OceanVesselPose.Angles poseTarget = OceanVesselPose.sample(
+            ocean,
+            dynamicConditions,
+            timeSeconds,
+            new Vec3(boat.getX(), baseWaterHeight, boat.getZ()),
+            yawRadians,
+            profile.beam(),
+            profile.length()
         );
 
         return new Correction(
             dynamic.force().subtract(flat.force()),
             dynamic.torque().subtract(flat.torque()),
-            dynamic.averageSubmersion()
+            dynamic.contact(),
+            poseTarget
         );
     }
 
@@ -100,7 +107,17 @@ final class BoatPhysicsSupport {
         );
     }
 
-    record Correction(Vec3 force, Vec3 torque, double averageSubmersion) {
-        static final Correction ZERO = new Correction(Vec3.ZERO, Vec3.ZERO, 0.0);
+    record Correction(
+        Vec3 force,
+        Vec3 torque,
+        VesselPhysics.ContactState contact,
+        OceanVesselPose.Angles poseTarget
+    ) {
+        static final Correction ZERO = new Correction(
+            Vec3.ZERO,
+            Vec3.ZERO,
+            new VesselPhysics.ContactState(0.0, 0.0, Vec3.ZERO, 0.0, 0.0, 0.0, 0.0),
+            new OceanVesselPose.Angles(0.0, 0.0)
+        );
     }
 }
