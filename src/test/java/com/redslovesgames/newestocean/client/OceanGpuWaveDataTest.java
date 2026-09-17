@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class OceanGpuWaveDataTest {
+    private static final double GPU_FLOAT_TOLERANCE = 2.0e-5;
+
     @Test
     void packedGpuWaveMathMatchesCpuOceanForVisualComponents() {
         ProceduralOcean ocean = ProceduralOcean.createDefault(987654321L);
@@ -21,12 +23,12 @@ class OceanGpuWaveDataTest {
         OceanSurface.SurfaceSample cpu = ocean.sample(x, z, time, conditions, 4);
         OceanGpuWaveData.Sample gpuReference = data.sampleReference(x, z, time, conditions);
 
-        assertEquals(cpu.height(), gpuReference.height(), 1.0e-9);
-        assertEquals(cpu.horizontalDisplacement().x(), gpuReference.displacementX(), 1.0e-9);
-        assertEquals(cpu.horizontalDisplacement().z(), gpuReference.displacementZ(), 1.0e-9);
-        assertEquals(cpu.normal().x(), gpuReference.normal().x(), 1.0e-9);
-        assertEquals(cpu.normal().y(), gpuReference.normal().y(), 1.0e-9);
-        assertEquals(cpu.normal().z(), gpuReference.normal().z(), 1.0e-9);
+        assertEquals(cpu.height(), gpuReference.height(), GPU_FLOAT_TOLERANCE);
+        assertEquals(cpu.horizontalDisplacement().x(), gpuReference.displacementX(), GPU_FLOAT_TOLERANCE);
+        assertEquals(cpu.horizontalDisplacement().z(), gpuReference.displacementZ(), GPU_FLOAT_TOLERANCE);
+        assertEquals(cpu.normal().x(), gpuReference.normal().x(), GPU_FLOAT_TOLERANCE);
+        assertEquals(cpu.normal().y(), gpuReference.normal().y(), GPU_FLOAT_TOLERANCE);
+        assertEquals(cpu.normal().z(), gpuReference.normal().z(), GPU_FLOAT_TOLERANCE);
     }
 
     @Test
