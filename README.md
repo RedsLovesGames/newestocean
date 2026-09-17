@@ -87,6 +87,22 @@ Phase 5 lets supported vessels use wave energy instead of only reacting vertical
 - Surfing and planing forces are only applied during normal displacement contact. Launching, airborne, and re-contact modes retain the protections from Phases 3 and 4.
 - Unit tests cover downhill surfing, opposite-face rejection, low-speed non-planing, high-speed planing, hull-specific planing strength, and nearly dry hulls.
 
+## Phase 6: multiplayer synchronization hardening
+
+Phase 6 makes the deterministic ocean safe across dedicated servers, singleplayer/LAN, reconnects, respawns, and dimension changes without adding continuous wave networking:
+
+- The logical server owns one authoritative ocean seed for the entire server session, derived once from the overworld seed at server startup.
+- Joining players receive that already-authoritative seed instead of causing the global ocean to be recomputed from their current dimension.
+- Logical server and logical client ocean state are stored separately, which is required because singleplayer/LAN can run both sides inside the same JVM.
+- Client play-session state is explicitly invalidated when a new play connection initializes and again on disconnect, preventing a previous server's ocean from being reused while reconnecting.
+- Receipt of the seed marks the current client play session synchronized and rebuilds only the client-side deterministic ocean.
+- Respawns and dimension changes keep the synchronized seed because they remain within the same play connection.
+- Minecraft's existing synchronized world time and weather state remain the shared clock/environment source, so no per-tick wave packets are needed.
+- The synchronization state tracks generations so a fresh session remains distinguishable even when two sessions happen to use the same seed.
+- Unit tests cover unsynchronized startup, seed acceptance, stale-state reset, reconnects, and same-seed fresh-session synchronization.
+
+The networking cost remains one tiny seed payload per play connection. Mesh vertices, wave samples, vessel forces, and ongoing ocean animation are never networked.
+
 ## Current implementation
 
 The `feature/ocean-core` branch currently contains:
@@ -96,6 +112,7 @@ The `feature/ocean-core` branch currently contains:
 - Phase 3 launch/airborne/re-contact state system.
 - Phase 4 progressive re-entry and passive angular stability system.
 - Phase 5 surfing and hull-specific planing dynamics.
+- Phase 6 hardened logical server/client ocean synchronization.
 - Vanilla boat wave-force correction.
 - Optional Small Ships tracking and size-scaled physics integration.
 - Vessel pose sampling from the same ocean surface.
@@ -113,8 +130,9 @@ Deterministic ocean state
   -> weather
   -> tides
   -> currents
-      -> server vessel physics
-      -> client ocean renderer
+      -> authoritative server ocean
+      -> synchronized client reconstruction
+          -> client ocean renderer
 
 Vessel physics
   -> shared hull profiles
