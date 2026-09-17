@@ -20,8 +20,11 @@ public final class NewestOceanClient implements ClientModInitializer {
             context.client().execute(() -> {
                 OCEAN_SYNC.accept(payload.seed());
                 NewestOcean.setClientOceanSeed(payload.seed());
+                OceanWorldRenderer.reset();
             })
         );
+
+        OceanWorldRenderer.register();
     }
 
     public static boolean isOceanSynchronized() {
@@ -35,5 +38,6 @@ public final class NewestOceanClient implements ClientModInitializer {
     private static void resetOceanSync() {
         OCEAN_SYNC.reset();
         NewestOcean.setClientOceanSeed(0L);
+        OceanWorldRenderer.reset();
     }
 }
