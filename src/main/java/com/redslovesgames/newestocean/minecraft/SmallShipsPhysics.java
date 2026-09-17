@@ -1,7 +1,6 @@
 package com.redslovesgames.newestocean.minecraft;
 
 import com.redslovesgames.newestocean.physics.AdaptiveHullProfile;
-import com.redslovesgames.newestocean.physics.VesselPhysics;
 import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.util.math.Box;
 
@@ -15,13 +14,8 @@ final class SmallShipsPhysics {
         }
 
         AdaptiveHullProfile.Profile profile = profileFor(boat);
-        VesselPhysics.Parameters parameters = profile.parameters();
-        BoatPhysicsSupport.Correction correction = BoatPhysicsSupport.solveCorrection(
-            boat,
-            profile.points(),
-            parameters
-        );
-        BoatPhysicsSupport.applyForceCorrection(boat, correction.force(), parameters);
+        BoatPhysicsSupport.Correction correction = BoatPhysicsSupport.solveCorrection(boat, profile);
+        BoatPhysicsSupport.applyForceCorrection(boat, correction.force(), profile.parameters());
     }
 
     private static AdaptiveHullProfile.Profile profileFor(BoatEntity boat) {
