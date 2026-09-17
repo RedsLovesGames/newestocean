@@ -1,17 +1,19 @@
 package com.redslovesgames.newestocean.client;
 
 /**
- * Tiny hysteresis controller that protects frame rate by moving only the visual quality tier.
- * It intentionally reacts slowly so transient spikes do not make the ocean visibly pop between tiers.
+ * Hysteresis controller that protects frame rate by moving only the visual quality tier.
+ * Thresholds accumulate real observed frame time so behavior is independent of current FPS.
  */
 public final class AdaptiveQualityController {
-    private static final int SLOW_FRAMES_TO_DOWNGRADE = 120;
-    private static final int FAST_FRAMES_TO_UPGRADE = 300;
+    private static final double SLOW_TIME_TO_DOWNGRADE_MS = 3_000.0;
+    private static final double FAST_TIME_TO_UPGRADE_MS = 10_000.0;
+    private static final double MAX_FRAME_SAMPLE_MS = 250.0;
+    private static final double NEUTRAL_DRAIN_RATE = 2.0;
 
     private final double targetFrameMs;
     private OceanQuality quality;
-    private int slowFrames;
-    private int fastFrames;
+    private double slowTimeMs;
+    private double fastTimeMs;
 
     public AdaptiveQualityController(OceanQuality initialQuality, double targetFrameMs) {
         if (initialQuality == null) {
@@ -25,32 +27,33 @@ public final class AdaptiveQualityController {
     }
 
     public void recordFrame(double frameMs) {
-        if (!Double.isFinite(frameMs) || frameMs < 0.0) {
+        if (!Double.isFinite(frameMs) || frameMs < 0.0 || frameMs > MAX_FRAME_SAMPLE_MS) {
             return;
         }
 
         if (frameMs > targetFrameMs * 1.15) {
-            slowFrames++;
-            fastFrames = 0;
-            if (slowFrames >= SLOW_FRAMES_TO_DOWNGRADE) {
+            slowTimeMs += frameMs;
+            fastTimeMs = 0.0;
+            if (slowTimeMs > SLOW_TIME_TO_DOWNGRADE_MS) {
                 quality = quality.lower();
-                slowFrames = 0;
+                resetWindows();
             }
             return;
         }
 
         if (frameMs < targetFrameMs * 0.70) {
-            fastFrames++;
-            slowFrames = 0;
-            if (fastFrames >= FAST_FRAMES_TO_UPGRADE) {
+            fastTimeMs += frameMs;
+            slowTimeMs = 0.0;
+            if (fastTimeMs >= FAST_TIME_TO_UPGRADE_MS) {
                 quality = quality.higher();
-                fastFrames = 0;
+                resetWindows();
             }
             return;
         }
 
-        slowFrames = Math.max(0, slowFrames - 2);
-        fastFrames = Math.max(0, fastFrames - 2);
+        double drain = frameMs * NEUTRAL_DRAIN_RATE;
+        slowTimeMs = Math.max(0.0, slowTimeMs - drain);
+        fastTimeMs = Math.max(0.0, fastTimeMs - drain);
     }
 
     public OceanQuality quality() {
@@ -62,7 +65,15 @@ public final class AdaptiveQualityController {
             throw new IllegalArgumentException("quality cannot be null");
         }
         this.quality = quality;
-        this.slowFrames = 0;
-        this.fastFrames = 0;
+        resetWindows();
+    }
+
+    public void resetSampling() {
+        resetWindows();
+    }
+
+    private void resetWindows() {
+        slowTimeMs = 0.0;
+        fastTimeMs = 0.0;
     }
 }
