@@ -29,10 +29,10 @@ final class BoatPhysicsSupport {
         double timeSeconds = world.getTime() * TICK_SECONDS;
         OceanConditions dynamicConditions = OceanEnvironment.conditions(
             NewestOcean.oceanSeed(),
+            baseWaterHeight,
             timeSeconds,
             world.getRainGradient(1.0F),
-            world.getThunderGradient(1.0F),
-            baseWaterHeight
+            world.getThunderGradient(1.0F)
         );
         OceanConditions flatConditions = new OceanConditions(0.0, baseWaterHeight, Vec3.ZERO);
         VesselPhysics.State state = capture(boat);
