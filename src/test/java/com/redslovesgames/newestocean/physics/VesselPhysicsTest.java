@@ -130,4 +130,34 @@ class VesselPhysicsTest {
         assertTrue(result.contact().localCenter().z() > 0.0);
         assertTrue(result.contact().bowLoad() > result.contact().sternLoad());
     }
+
+    @Test
+    void oneSidedWaterContactProducesRollTorqueAndSideLoad() {
+        OceanSurface oneSided = (x, z, time, conditions) ->
+            new OceanSurface.SurfaceSample(
+                x < 0.0 ? 0.30 : -0.20,
+                Vec3.UP,
+                Vec3.ZERO,
+                Vec3.ZERO
+            );
+        VesselPhysics.State state = new VesselPhysics.State(
+            VesselPhysics.Pose.uprightYaw(Vec3.ZERO, 0.0),
+            Vec3.ZERO,
+            Vec3.ZERO
+        );
+
+        VesselPhysics.Result result = VesselPhysics.solve(
+            oneSided,
+            OceanConditions.CALM,
+            0.0,
+            state,
+            FOUR_POINTS,
+            VesselPhysics.Parameters.smallBoat()
+        );
+
+        assertEquals(2, result.wetPoints());
+        assertTrue(result.contact().portLoad() > result.contact().starboardLoad());
+        assertTrue(result.contact().localCenter().x() < 0.0);
+        assertTrue(result.torque().z() < 0.0);
+    }
 }
