@@ -43,7 +43,20 @@ Phase 2 provides the common vessel model used by vanilla boats and Small Ships:
 - Wave-aligned pitch and roll targets are generated from the same ocean field for later renderer and motion-state integration.
 - Asymmetric water-contact tests verify side loading and roll torque.
 
-The detailed contact state is intentionally exposed before launch/glide logic. Phase 3 can decide whether a vessel is displacement-floating, launching, or airborne without changing the underlying buoyancy solver.
+## Phase 3: launch, airborne glide, and re-contact
+
+Phase 3 prevents vessels from being glued to the wave surface after a crest:
+
+- A pure motion-state controller tracks displacement, launching, airborne, and re-contact modes.
+- Launch requires real partial hull contact, forward speed, and upward vessel motion relative to the moving water surface.
+- A fully dry vessel cannot accidentally enter wave-launch mode.
+- Launching vessels may still receive upward and horizontal wave correction, but Newest Ocean cannot pull them downward toward the water.
+- Once airborne, Newest Ocean applies zero water force, allowing existing momentum and normal Minecraft gravity to control the glide.
+- Motion state continues updating even after the entity stops touching water.
+- Descending vessels transition to re-contact only after the hull actually regains water support.
+- Vanilla boats and Small Ships share the same motion-state runtime.
+
+Phase 4 owns progressive impact damping, angular stabilization, and anti-flip tuning during re-entry.
 
 ## Current implementation
 
@@ -51,6 +64,7 @@ The `feature/ocean-core` branch currently contains:
 
 - Phase 1 deterministic ocean core.
 - Phase 2 shared vessel physics foundation.
+- Phase 3 launch/airborne/re-contact state system.
 - Vanilla boat wave-force correction.
 - Optional Small Ships tracking and size-scaled physics integration.
 - Vessel pose sampling from the same ocean surface.
@@ -76,7 +90,8 @@ Vessel physics
   -> vanilla boats
   -> Small Ships
   -> detailed water contact
-  -> launch / glide / re-entry
+  -> launch / airborne glide / re-contact
+  -> re-entry stabilization
   -> surfing / planing
 
 Renderer
