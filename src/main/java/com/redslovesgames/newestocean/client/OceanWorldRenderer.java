@@ -105,6 +105,8 @@ public final class OceanWorldRenderer {
 
         Vec3d camera = context.camera().getPos();
         float tickDelta = context.tickCounter().getTickDelta(true);
+        float rainGradient = client.world.getRainGradient(tickDelta);
+        float thunderGradient = client.world.getThunderGradient(tickDelta);
         OceanRenderFrame.Frame frame = OceanRenderFrame.prepare(
             true,
             quality,
@@ -113,8 +115,8 @@ public final class OceanWorldRenderer {
             client.world.getTime(),
             tickDelta,
             client.world.getSeaLevel(),
-            client.world.getRainGradient(tickDelta),
-            client.world.getThunderGradient(tickDelta),
+            rainGradient,
+            thunderGradient,
             NewestOcean.clientOceanSeed()
         ).orElseThrow();
 
@@ -126,7 +128,7 @@ public final class OceanWorldRenderer {
         }
 
         if (OceanGpuShader.available()) {
-            drawGpu(camera, frame, topology, waterIndices);
+            drawGpu(camera, frame, topology, waterIndices, rainGradient, thunderGradient);
         } else {
             OceanLodMeshGenerator.Mesh mesh = OceanLodMeshGenerator.generate(
                 NewestOcean.clientOcean(),
@@ -136,7 +138,7 @@ public final class OceanWorldRenderer {
                 frame.timeSeconds(),
                 frame.conditions()
             );
-            drawCpu(context, camera, mesh);
+            drawCpu(context, camera, mesh, frame, rainGradient, thunderGradient);
         }
     }
 
@@ -174,7 +176,9 @@ public final class OceanWorldRenderer {
         Vec3d camera,
         OceanRenderFrame.Frame frame,
         OceanLodTopology topology,
-        int[] indices
+        int[] indices,
+        float rainGradient,
+        float thunderGradient
     ) {
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION);
         OceanLodTopology.LocalVertex[] localVertices = topology.vertices();
@@ -192,6 +196,9 @@ public final class OceanWorldRenderer {
             plan.visualWaveComponents(),
             frame.timeSeconds(),
             frame.conditions(),
+            plan.quality(),
+            rainGradient,
+            thunderGradient,
             camera.x,
             camera.y,
             camera.z
@@ -219,7 +226,14 @@ public final class OceanWorldRenderer {
         consumer.vertex(x, 0.0F, z);
     }
 
-    private static void drawCpu(WorldRenderContext context, Vec3d camera, OceanLodMeshGenerator.Mesh mesh) {
+    private static void drawCpu(
+        WorldRenderContext context,
+        Vec3d camera,
+        OceanLodMeshGenerator.Mesh mesh,
+        OceanRenderFrame.Frame frame,
+        float rainGradient,
+        float thunderGradient
+    ) {
         MatrixStack matrices = context.matrixStack();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
@@ -236,12 +250,32 @@ public final class OceanWorldRenderer {
                 .add(bottomLeft.normal())
                 .add(topRight.normal())
                 .add(bottomRight.normal())
-                .multiply(0.25);
+                .multiply(0.25)
+                .normalize();
             float light = (float) MathHelper.clamp(0.72 + normal.y() * 0.20, 0.68, 0.94);
-            float red = 0.055F * light;
-            float green = 0.34F * light;
-            float blue = 0.58F * light;
-            float alpha = 0.72F;
+
+            double slopeMagnitude = Math.hypot(normal.x(), normal.z()) / Math.max(0.05, normal.y());
+            double averageHeight = (
+                topLeft.y() + bottomLeft.y() + topRight.y() + bottomRight.y()
+            ) * 0.25;
+            double crestHeight = Math.max(0.0, averageHeight - frame.conditions().tideOffset());
+            double crestCurvature = crestHeight * (0.12 + 0.38 * Math.min(1.5, slopeMagnitude));
+            float foam = (float) OceanWhitecapModel.intensity(
+                slopeMagnitude,
+                crestCurvature,
+                rainGradient,
+                thunderGradient,
+                frame.plan().quality(),
+                1.0
+            );
+
+            float baseRed = 0.055F * light;
+            float baseGreen = 0.34F * light;
+            float baseBlue = 0.58F * light;
+            float red = baseRed + (0.93F - baseRed) * foam;
+            float green = baseGreen + (0.97F - baseGreen) * foam;
+            float blue = baseBlue + (1.00F - baseBlue) * foam;
+            float alpha = 0.72F + 0.16F * foam;
 
             emitCpu(builder, matrix, camera, topLeft, red, green, blue, alpha);
             emitCpu(builder, matrix, camera, bottomLeft, red, green, blue, alpha);
