@@ -73,6 +73,20 @@ Phase 4 makes water re-entry heavy and stable without hard-locking vessel orient
 
 Newest Ocean intentionally does not use a rule such as `roll > 30 degrees -> force roll back to 30 degrees`. Stability comes from forces, inertia, damping, and capped impulses.
 
+## Phase 5: surfing and planing
+
+Phase 5 lets supported vessels use wave energy instead of only reacting vertically to the water surface:
+
+- Surfing uses the already-sampled local water normal to identify the downhill face of a wave.
+- Forward surfing force is added only when the vessel is moving along a sufficiently steep downhill face and its heading is aligned with that face.
+- Horizontal Gerstner wave velocity contributes a small additional push, while deterministic background current is excluded so steady current cannot masquerade as surfing.
+- Surfing uses the real wave slope scale produced by the six-band ocean rather than requiring unrealistic water speeds.
+- Planing lift rises smoothly with forward speed and hull support instead of switching on abruptly.
+- Adaptive hull profiles include a planing factor: small/light hulls plane readily, while large displacement hulls receive much less dynamic lift.
+- Planing strength is squared by the hull factor so heavy Cogs and Caravel-sized hulls remain primarily displacement vessels.
+- Surfing and planing forces are only applied during normal displacement contact. Launching, airborne, and re-contact modes retain the protections from Phases 3 and 4.
+- Unit tests cover downhill surfing, opposite-face rejection, low-speed non-planing, high-speed planing, hull-specific planing strength, and nearly dry hulls.
+
 ## Current implementation
 
 The `feature/ocean-core` branch currently contains:
@@ -81,6 +95,7 @@ The `feature/ocean-core` branch currently contains:
 - Phase 2 shared vessel physics foundation.
 - Phase 3 launch/airborne/re-contact state system.
 - Phase 4 progressive re-entry and passive angular stability system.
+- Phase 5 surfing and hull-specific planing dynamics.
 - Vanilla boat wave-force correction.
 - Optional Small Ships tracking and size-scaled physics integration.
 - Vessel pose sampling from the same ocean surface.
@@ -108,7 +123,7 @@ Vessel physics
   -> detailed water contact
   -> launch / airborne glide / re-contact
   -> progressive re-entry / angular stability
-  -> surfing / planing
+  -> surfing / hull-specific planing
 
 Renderer
   -> camera-centered LOD mesh
