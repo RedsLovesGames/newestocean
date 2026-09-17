@@ -127,11 +127,26 @@ Phase 8 connects the deterministic LOD ocean to Minecraft's world renderer:
 - Sea-level water cells are discovered from the actual client world fluid state and cached by snapped mesh origin, quality tier, and dimension.
 - Coverage refreshes periodically so nearby water edits can eventually update without per-frame block/fluid probing.
 - Only water cells emit visible geometry; land cells do not receive ocean quads.
-- The current Phase 8 renderer uses Minecraft's built-in translucent position/color debug-quad layer as a deliberately temporary, shader-free proof path.
-- Surface color is lightly modulated from the deterministic wave normals so the first visible mesh has readable moving shape.
-- Unit tests cover synchronization gating, interpolated render time, LOD-frame preparation, and shared weather/environment inputs.
+- The Phase 8 proof path uses immediate position/color submission after translucent terrain with blending and depth testing.
+- Surface color is lightly modulated from deterministic wave normals so the proof mesh has readable moving shape.
+- Unit tests cover synchronization gating, interpolated render time, LOD-frame preparation, camera-relative coordinates, and shared weather/environment inputs.
 
-Phase 8 intentionally remains a CPU-displaced proof renderer. Phase 9 replaces this temporary draw layer with the dedicated GPU displacement/shader path without changing authoritative physics.
+## Phase 9: GPU displacement
+
+Phase 9 removes per-visible-vertex wave evaluation from the preferred CPU render path:
+
+- A Fabric core shader is registered from the `newestocean:ocean_surface` shader resources.
+- The CPU packs the deterministic physical wave components into a compact six-slot uniform payload.
+- Quality tiers still choose how many of those physical components are active visually, while server physics always keeps the full physical wave field.
+- The vertex shader evaluates the same Gerstner phase, vertical height, horizontal displacement, slope, and normal equations used by `ProceduralOcean`.
+- CPU rendering submits undisplaced camera-relative base geometry from the cached LOD topology instead of recomputing animated positions and normals every frame.
+- World-space phase sampling is reconstructed from the camera position so distant coordinates remain stable while submitted geometry remains camera-relative.
+- Time, wave scale, tide-adjusted water height, camera coordinates, and packed wave parameters are the only dynamic shader inputs required for wave animation.
+- Water/land coverage and LOD topology remain CPU responsibilities because they change much less often than wave animation.
+- A CPU reference implementation of the packed GPU wave payload is regression-tested against the authoritative `ProceduralOcean` equations at realistic GPU float precision.
+- If the custom shader has not loaded, the Phase 8 CPU-displaced renderer remains available as a safe fallback rather than making the ocean disappear.
+
+Phase 9 moves the expensive trigonometric wave animation and normal generation to the GPU without changing authoritative vessel physics or adding network traffic.
 
 ## Current implementation
 
@@ -144,7 +159,8 @@ The `feature/ocean-core` branch currently contains:
 - Phase 5 surfing and hull-specific planing dynamics.
 - Phase 6 hardened logical server/client ocean synchronization.
 - Phase 7 cached concentric LOD ocean topology and water masking.
-- Phase 8 first visible synchronized CPU ocean renderer.
+- Phase 8 first visible synchronized ocean renderer and CPU fallback.
+- Phase 9 dedicated GPU Gerstner displacement and normal generation.
 - Vanilla boat wave-force correction.
 - Optional Small Ships tracking and size-scaled physics integration.
 - Vessel pose sampling from the same ocean surface.
@@ -163,8 +179,9 @@ Deterministic ocean state
       -> synchronized client reconstruction
           -> cached concentric LOD topology
           -> cached water coverage
-          -> visible Phase 8 CPU ocean
-          -> Phase 9 GPU ocean
+          -> GPU wave-uniform payload
+          -> GPU-displaced visible ocean
+          -> CPU fallback
 
 Vessel physics
   -> shared hull profiles
@@ -177,8 +194,9 @@ Vessel physics
 
 Renderer
   -> camera-centered LOD mesh
-  -> visible synchronized CPU proof path
-  -> GPU displacement
+  -> water-only coverage indices
+  -> GPU Gerstner displacement and normals
+  -> adaptive quality
   -> foam / wakes / shoreline effects
 ```
 
