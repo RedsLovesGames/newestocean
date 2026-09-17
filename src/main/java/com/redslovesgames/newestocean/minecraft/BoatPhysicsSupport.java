@@ -7,16 +7,63 @@ import com.redslovesgames.newestocean.ocean.OceanEnvironment;
 import com.redslovesgames.newestocean.ocean.OceanSurface;
 import com.redslovesgames.newestocean.physics.AdaptiveHullProfile;
 import com.redslovesgames.newestocean.physics.OceanVesselPose;
+import com.redslovesgames.newestocean.physics.VesselMotionController;
 import com.redslovesgames.newestocean.physics.VesselPhysics;
 import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 final class BoatPhysicsSupport {
     private static final double TICK_SECONDS = 1.0 / 20.0;
     private static final double BLOCKS_PER_SECOND_TO_BLOCKS_PER_TICK = 1.0 / 20.0;
+    private static final Map<BoatEntity, VesselMotionController.State> MOTION_STATES = new WeakHashMap<>();
 
     private BoatPhysicsSupport() {
+    }
+
+    static void tick(BoatEntity boat, AdaptiveHullProfile.Profile profile) {
+        if (boat.getWorld().isClient() || boat.isRemoved()) {
+            return;
+        }
+
+        VesselMotionController.State previous = MOTION_STATES.getOrDefault(
+            boat,
+            VesselMotionController.State.initial()
+        );
+
+        if (!boat.isTouchingWater()) {
+            VesselMotionController.State next = VesselMotionController.advance(
+                previous,
+                new VesselMotionController.Input(0.0, verticalVelocityPerSecond(boat), 0.0, horizontalSpeedPerSecond(boat))
+            );
+            MOTION_STATES.put(boat, next);
+            return;
+        }
+
+        Correction correction = solveCorrection(boat, profile);
+        VesselMotionController.State next = VesselMotionController.advance(
+            previous,
+            new VesselMotionController.Input(
+                correction.contact().wetFraction(),
+                verticalVelocityPerSecond(boat),
+                correction.waterVerticalVelocity(),
+                horizontalSpeedPerSecond(boat)
+            )
+        );
+        MOTION_STATES.put(boat, next);
+
+        if (!next.allowWaterForces()) {
+            return;
+        }
+
+        Vec3 force = correction.force();
+        if (!next.allowDownwardWaterForce() && force.y() < 0.0) {
+            force = new Vec3(force.x(), 0.0, force.z());
+        }
+        applyForceCorrection(boat, force, profile.parameters());
     }
 
     static Correction solveCorrection(BoatEntity boat, AdaptiveHullProfile.Profile profile) {
@@ -66,12 +113,19 @@ final class BoatPhysicsSupport {
             profile.beam(),
             profile.length()
         );
+        double waterVerticalVelocity = ocean.sample(
+            boat.getX(),
+            boat.getZ(),
+            timeSeconds,
+            dynamicConditions
+        ).surfaceVelocity().y();
 
         return new Correction(
             dynamic.force().subtract(flat.force()),
             dynamic.torque().subtract(flat.torque()),
             dynamic.contact(),
-            poseTarget
+            poseTarget,
+            waterVerticalVelocity
         );
     }
 
@@ -86,6 +140,15 @@ final class BoatPhysicsSupport {
             current.y + velocityDeltaPerTick.y(),
             current.z + velocityDeltaPerTick.z()
         );
+    }
+
+    private static double verticalVelocityPerSecond(BoatEntity boat) {
+        return boat.getVelocity().y * 20.0;
+    }
+
+    private static double horizontalSpeedPerSecond(BoatEntity boat) {
+        Vec3d velocity = boat.getVelocity();
+        return Math.hypot(velocity.x, velocity.z) * 20.0;
     }
 
     private static VesselPhysics.State capture(BoatEntity boat) {
@@ -111,13 +174,15 @@ final class BoatPhysicsSupport {
         Vec3 force,
         Vec3 torque,
         VesselPhysics.ContactState contact,
-        OceanVesselPose.Angles poseTarget
+        OceanVesselPose.Angles poseTarget,
+        double waterVerticalVelocity
     ) {
         static final Correction ZERO = new Correction(
             Vec3.ZERO,
             Vec3.ZERO,
             new VesselPhysics.ContactState(0.0, 0.0, Vec3.ZERO, 0.0, 0.0, 0.0, 0.0),
-            new OceanVesselPose.Angles(0.0, 0.0)
+            new OceanVesselPose.Angles(0.0, 0.0),
+            0.0
         );
     }
 }
