@@ -1,24 +1,13 @@
 package com.redslovesgames.newestocean.minecraft;
 
-import com.redslovesgames.newestocean.math.Vec3;
-import com.redslovesgames.newestocean.physics.VesselPhysics;
+import com.redslovesgames.newestocean.physics.AdaptiveHullProfile;
 import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
-
-import java.util.List;
+import net.minecraft.util.math.Box;
 
 /** Adds wave motion as a correction on top of vanilla boat buoyancy. */
 public final class VanillaBoatPhysics {
-    private static final List<VesselPhysics.BuoyancyPoint> VANILLA_POINTS = List.of(
-        new VesselPhysics.BuoyancyPoint(new Vec3(-0.55, 0.0, -0.85), 1.0),
-        new VesselPhysics.BuoyancyPoint(new Vec3(0.55, 0.0, -0.85), 1.0),
-        new VesselPhysics.BuoyancyPoint(new Vec3(-0.55, 0.0, 0.85), 1.0),
-        new VesselPhysics.BuoyancyPoint(new Vec3(0.55, 0.0, 0.85), 1.0)
-    );
-
-    private static final VesselPhysics.Parameters PARAMETERS = VesselPhysics.Parameters.smallBoat();
-
     private VanillaBoatPhysics() {
     }
 
@@ -27,12 +16,19 @@ public final class VanillaBoatPhysics {
             return;
         }
 
-        BoatPhysicsSupport.Correction correction = BoatPhysicsSupport.solveCorrection(
-            boat,
-            VANILLA_POINTS,
-            PARAMETERS
+        AdaptiveHullProfile.Profile profile = profileFor(boat);
+        BoatPhysicsSupport.Correction correction = BoatPhysicsSupport.solveCorrection(boat, profile);
+        BoatPhysicsSupport.applyForceCorrection(boat, correction.force(), profile.parameters());
+    }
+
+    private static AdaptiveHullProfile.Profile profileFor(BoatEntity boat) {
+        Box box = boat.getBoundingBox();
+        double spanX = Math.max(1.0, box.getLengthX());
+        double spanZ = Math.max(1.0, box.getLengthZ());
+        return AdaptiveHullProfile.fromDimensions(
+            Math.min(spanX, spanZ),
+            Math.max(spanX, spanZ)
         );
-        BoatPhysicsSupport.applyForceCorrection(boat, correction.force(), PARAMETERS);
     }
 
     private static boolean isVanillaBoat(BoatEntity boat) {
