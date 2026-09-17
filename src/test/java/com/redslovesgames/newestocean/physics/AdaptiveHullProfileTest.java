@@ -40,12 +40,25 @@ class AdaptiveHullProfileTest {
     }
 
     @Test
+    void smallerHullHasHigherPlaningFactorThanLargeDisplacementHull() {
+        AdaptiveHullProfile.Profile small = AdaptiveHullProfile.fromDimensions(1.4, 2.5);
+        AdaptiveHullProfile.Profile medium = AdaptiveHullProfile.fromDimensions(3.0, 7.0);
+        AdaptiveHullProfile.Profile large = AdaptiveHullProfile.fromDimensions(5.5, 14.0);
+
+        assertTrue(small.planingFactor() > medium.planingFactor());
+        assertTrue(medium.planingFactor() > large.planingFactor());
+        assertTrue(small.planingFactor() <= 1.0);
+        assertTrue(large.planingFactor() >= 0.0);
+    }
+
+    @Test
     void invalidOrExtremeDimensionsAreClampedToSafeFiniteProfiles() {
         AdaptiveHullProfile.Profile profile = AdaptiveHullProfile.fromDimensions(0.01, 500.0);
 
         assertEquals(16, profile.points().size());
         assertTrue(Double.isFinite(profile.parameters().mass()));
         assertTrue(profile.parameters().mass() > 0.0);
+        assertTrue(Double.isFinite(profile.planingFactor()));
         for (VesselPhysics.BuoyancyPoint point : profile.points()) {
             assertTrue(Double.isFinite(point.localPosition().x()));
             assertTrue(Double.isFinite(point.localPosition().z()));
