@@ -9,6 +9,7 @@ import com.redslovesgames.newestocean.physics.AdaptiveHullProfile;
 import com.redslovesgames.newestocean.physics.OceanVesselPose;
 import com.redslovesgames.newestocean.physics.VesselMotionController;
 import com.redslovesgames.newestocean.physics.VesselPhysics;
+import com.redslovesgames.newestocean.physics.VesselReentryDynamics;
 import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -44,6 +45,7 @@ final class BoatPhysicsSupport {
         }
 
         Correction correction = solveCorrection(boat, profile);
+        double relativeVerticalVelocity = verticalVelocityPerSecond(boat) - correction.waterVerticalVelocity();
         VesselMotionController.State next = VesselMotionController.advance(
             previous,
             new VesselMotionController.Input(
@@ -59,7 +61,25 @@ final class BoatPhysicsSupport {
             return;
         }
 
-        Vec3 force = correction.force();
+        double pitchError = Math.toRadians(boat.getPitch()) - correction.poseTarget().pitchRadians();
+        double rollError = -correction.poseTarget().rollRadians();
+        VesselReentryDynamics.Result reentry = VesselReentryDynamics.resolve(
+            new VesselReentryDynamics.Input(
+                next.mode(),
+                correction.contact().wetFraction(),
+                relativeVerticalVelocity,
+                correction.force(),
+                correction.torque(),
+                pitchError,
+                rollError,
+                Vec3.ZERO,
+                profile.beam(),
+                profile.length(),
+                profile.parameters().mass()
+            )
+        );
+
+        Vec3 force = reentry.force();
         if (!next.allowDownwardWaterForce() && force.y() < 0.0) {
             force = new Vec3(force.x(), 0.0, force.z());
         }
