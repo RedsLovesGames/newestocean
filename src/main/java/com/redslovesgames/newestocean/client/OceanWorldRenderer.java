@@ -1,11 +1,18 @@
 package com.redslovesgames.newestocean.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.redslovesgames.newestocean.NewestOcean;
 import com.redslovesgames.newestocean.math.Vec3;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.util.math.BlockPos;
@@ -30,7 +37,7 @@ public final class OceanWorldRenderer {
     }
 
     public static void register() {
-        WorldRenderEvents.AFTER_ENTITIES.register(OceanWorldRenderer::render);
+        WorldRenderEvents.AFTER_TRANSLUCENT.register(OceanWorldRenderer::render);
     }
 
     public static OceanQuality quality() {
@@ -58,10 +65,7 @@ public final class OceanWorldRenderer {
 
     private static void render(WorldRenderContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (!NewestOceanClient.isOceanSynchronized()
-            || client.world == null
-            || context.matrixStack() == null
-            || context.consumers() == null) {
+        if (!NewestOceanClient.isOceanSynchronized() || client.world == null || context.matrixStack() == null) {
             return;
         }
 
@@ -130,7 +134,7 @@ public final class OceanWorldRenderer {
     private static void draw(WorldRenderContext context, Vec3d camera, OceanLodMeshGenerator.Mesh mesh) {
         MatrixStack matrices = context.matrixStack();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
-        VertexConsumer vertices = context.consumers().getBuffer(OceanRenderLayer.INSTANCE);
+        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
 
         OceanLodMeshGenerator.Vertex[] meshVertices = mesh.vertices();
         int[] indices = mesh.indices();
@@ -151,10 +155,22 @@ public final class OceanWorldRenderer {
             float blue = 0.58F * light;
             float alpha = 0.72F;
 
-            emit(vertices, matrix, camera, topLeft, red, green, blue, alpha);
-            emit(vertices, matrix, camera, bottomLeft, red, green, blue, alpha);
-            emit(vertices, matrix, camera, bottomRight, red, green, blue, alpha);
-            emit(vertices, matrix, camera, topRight, red, green, blue, alpha);
+            emit(builder, matrix, camera, topLeft, red, green, blue, alpha);
+            emit(builder, matrix, camera, bottomLeft, red, green, blue, alpha);
+            emit(builder, matrix, camera, bottomRight, red, green, blue, alpha);
+            emit(builder, matrix, camera, topRight, red, green, blue, alpha);
+        }
+
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(false);
+        try {
+            BufferRenderer.drawWithGlobalProgram(builder.end());
+        } finally {
+            RenderSystem.depthMask(true);
+            RenderSystem.disableBlend();
         }
     }
 
