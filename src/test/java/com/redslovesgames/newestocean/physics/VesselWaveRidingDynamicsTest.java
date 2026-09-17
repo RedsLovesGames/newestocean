@@ -9,14 +9,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class VesselWaveRidingDynamicsTest {
     private static final Vec3 FORWARD = new Vec3(0.0, 0.0, 1.0);
+    private static final Vec3 DOWNHILL_FORWARD = new Vec3(0.0, 0.98, 0.20).normalize();
+    private static final Vec3 DOWNHILL_BACKWARD = new Vec3(0.0, 0.98, -0.20).normalize();
 
     @Test
-    void followingSwellProducesForwardSurfingForce() {
+    void downhillWaveFaceProducesForwardSurfingForceAtRealisticWaveVelocity() {
         VesselWaveRidingDynamics.Result result = VesselWaveRidingDynamics.resolve(
             new VesselWaveRidingDynamics.Input(
                 0.65,
-                new Vec3(0.0, 0.0, 1.4),
-                new Vec3(0.0, 0.0, 2.4),
+                new Vec3(0.0, 0.0, 2.5),
+                new Vec3(0.0, 0.0, 0.15),
+                DOWNHILL_FORWARD,
                 FORWARD,
                 2.0,
                 4.0,
@@ -31,12 +34,13 @@ class VesselWaveRidingDynamicsTest {
     }
 
     @Test
-    void opposingWaterDoesNotCreateSurfingBoost() {
+    void climbingOppositeWaveFaceDoesNotCreateSurfingBoost() {
         VesselWaveRidingDynamics.Result result = VesselWaveRidingDynamics.resolve(
             new VesselWaveRidingDynamics.Input(
                 0.70,
-                new Vec3(0.0, 0.0, 1.5),
-                new Vec3(0.0, 0.0, -2.0),
+                new Vec3(0.0, 0.0, 2.5),
+                new Vec3(0.0, 0.0, -0.15),
+                DOWNHILL_BACKWARD,
                 FORWARD,
                 2.0,
                 4.0,
@@ -56,6 +60,7 @@ class VesselWaveRidingDynamicsTest {
                 0.80,
                 new Vec3(0.0, 0.0, 0.7),
                 Vec3.ZERO,
+                Vec3.UP,
                 FORWARD,
                 2.0,
                 4.0,
@@ -75,6 +80,7 @@ class VesselWaveRidingDynamicsTest {
                 0.55,
                 new Vec3(0.0, 0.0, 4.0),
                 Vec3.ZERO,
+                Vec3.UP,
                 FORWARD,
                 1.5,
                 3.0,
@@ -95,6 +101,7 @@ class VesselWaveRidingDynamicsTest {
                 0.55,
                 new Vec3(0.0, 0.0, 4.0),
                 Vec3.ZERO,
+                Vec3.UP,
                 FORWARD,
                 2.0,
                 6.0,
@@ -107,6 +114,7 @@ class VesselWaveRidingDynamicsTest {
                 0.55,
                 new Vec3(0.0, 0.0, 4.0),
                 Vec3.ZERO,
+                Vec3.UP,
                 FORWARD,
                 5.0,
                 14.0,
@@ -124,7 +132,8 @@ class VesselWaveRidingDynamicsTest {
             new VesselWaveRidingDynamics.Input(
                 0.04,
                 new Vec3(0.0, 0.0, 5.0),
-                new Vec3(0.0, 0.0, 3.0),
+                new Vec3(0.0, 0.0, 0.2),
+                DOWNHILL_FORWARD,
                 FORWARD,
                 2.0,
                 4.0,
