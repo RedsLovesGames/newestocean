@@ -9,13 +9,12 @@ final class SmallShipsPhysics {
     }
 
     static void tick(BoatEntity boat) {
-        if (boat.getWorld().isClient() || !boat.isTouchingWater() || boat.isRemoved()) {
+        if (boat.getWorld().isClient() || boat.isRemoved()) {
             return;
         }
 
         AdaptiveHullProfile.Profile profile = profileFor(boat);
-        BoatPhysicsSupport.Correction correction = BoatPhysicsSupport.solveCorrection(boat, profile);
-        BoatPhysicsSupport.applyForceCorrection(boat, correction.force(), profile.parameters());
+        BoatPhysicsSupport.tick(boat, profile);
     }
 
     private static AdaptiveHullProfile.Profile profileFor(BoatEntity boat) {
