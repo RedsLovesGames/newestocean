@@ -31,13 +31,26 @@ Phase 1 provides the common ocean state used by every later physics and renderin
 
 The client reconstructs the ocean locally from the synchronized seed and normal Minecraft time/weather state. Water vertices are not networked.
 
+## Phase 2: vessel physics foundation
+
+Phase 2 provides the common vessel model used by vanilla boats and Small Ships:
+
+- Adaptive hull profiles scale buoyancy sample count, mass, draft, drag, damping, and acceleration limits with vessel size.
+- Vanilla boats and Small Ships use the same profile-driven correction solver.
+- Multi-point buoyancy produces force and pitch/roll torque from the shared ocean surface.
+- Differential wave correction preserves Minecraft or ship-mod flat-water buoyancy instead of stacking a second complete buoyancy model on top.
+- Contact state reports wet-point fraction, weighted submersion, local support center, bow/stern loading, and port/starboard loading.
+- Wave-aligned pitch and roll targets are generated from the same ocean field for later renderer and motion-state integration.
+- Asymmetric water-contact tests verify side loading and roll torque.
+
+The detailed contact state is intentionally exposed before launch/glide logic. Phase 3 can decide whether a vessel is displacement-floating, launching, or airborne without changing the underlying buoyancy solver.
+
 ## Current implementation
 
 The `feature/ocean-core` branch currently contains:
 
-- The Phase 1 deterministic ocean core.
-- Multi-point vessel buoyancy with pitch/roll torque, damping, current drag, and force limits.
-- Adaptive hull sizing for larger vessels.
+- Phase 1 deterministic ocean core.
+- Phase 2 shared vessel physics foundation.
 - Vanilla boat wave-force correction.
 - Optional Small Ships tracking and size-scaled physics integration.
 - Vessel pose sampling from the same ocean surface.
@@ -59,8 +72,10 @@ Deterministic ocean state
       -> client ocean renderer
 
 Vessel physics
+  -> shared hull profiles
   -> vanilla boats
   -> Small Ships
+  -> detailed water contact
   -> launch / glide / re-entry
   -> surfing / planing
 
