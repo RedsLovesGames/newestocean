@@ -20,7 +20,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
-/** First visible CPU ocean renderer. Phase 9 moves displacement and normals to the GPU. */
+/** Visible ocean renderer. GPU displacement is preferred; the Phase 8 CPU path remains a safe fallback. */
 public final class OceanWorldRenderer {
     private static final OceanLodTopology.Cache TOPOLOGY_CACHE = new OceanLodTopology.Cache();
     private static final int COVERAGE_REFRESH_TICKS = 100;
@@ -86,19 +86,24 @@ public final class OceanWorldRenderer {
 
         OceanLodTopology topology = TOPOLOGY_CACHE.get(frame.plan());
         OceanLodCoverageMask currentCoverage = coverageFor(client, frame.plan(), topology);
-        OceanLodMeshGenerator.Mesh mesh = OceanLodMeshGenerator.generate(
-            NewestOcean.clientOcean(),
-            frame.plan(),
-            topology,
-            currentCoverage,
-            frame.timeSeconds(),
-            frame.conditions()
-        );
-        if (mesh.indices().length == 0) {
+        int[] waterIndices = currentCoverage.waterIndices(topology);
+        if (waterIndices.length == 0) {
             return;
         }
 
-        draw(context, camera, mesh);
+        if (OceanGpuShader.available()) {
+            drawGpu(camera, frame, topology, waterIndices);
+        } else {
+            OceanLodMeshGenerator.Mesh mesh = OceanLodMeshGenerator.generate(
+                NewestOcean.clientOcean(),
+                frame.plan(),
+                topology,
+                currentCoverage,
+                frame.timeSeconds(),
+                frame.conditions()
+            );
+            drawCpu(context, camera, mesh);
+        }
     }
 
     private static OceanLodCoverageMask coverageFor(
@@ -131,7 +136,56 @@ public final class OceanWorldRenderer {
         return coverage;
     }
 
-    private static void draw(WorldRenderContext context, Vec3d camera, OceanLodMeshGenerator.Mesh mesh) {
+    private static void drawGpu(
+        Vec3d camera,
+        OceanRenderFrame.Frame frame,
+        OceanLodTopology topology,
+        int[] indices
+    ) {
+        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION);
+        OceanLodTopology.LocalVertex[] localVertices = topology.vertices();
+        OceanLodPlanner.Plan plan = frame.plan();
+
+        for (int index = 0; index + 5 < indices.length; index += 6) {
+            emitStatic(builder, localVertices[indices[index]], plan, camera);
+            emitStatic(builder, localVertices[indices[index + 1]], plan, camera);
+            emitStatic(builder, localVertices[indices[index + 5]], plan, camera);
+            emitStatic(builder, localVertices[indices[index + 2]], plan, camera);
+        }
+
+        OceanGpuShader.apply(
+            NewestOcean.clientOcean(),
+            plan.visualWaveComponents(),
+            frame.timeSeconds(),
+            frame.conditions(),
+            camera.x,
+            camera.y,
+            camera.z
+        );
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(false);
+        try {
+            BufferRenderer.drawWithGlobalProgram(builder.end());
+        } finally {
+            RenderSystem.depthMask(true);
+            RenderSystem.disableBlend();
+        }
+    }
+
+    private static void emitStatic(
+        VertexConsumer consumer,
+        OceanLodTopology.LocalVertex vertex,
+        OceanLodPlanner.Plan plan,
+        Vec3d camera
+    ) {
+        float x = (float) (plan.originX() + vertex.x() - camera.x);
+        float z = (float) (plan.originZ() + vertex.z() - camera.z);
+        consumer.vertex(x, 0.0F, z);
+    }
+
+    private static void drawCpu(WorldRenderContext context, Vec3d camera, OceanLodMeshGenerator.Mesh mesh) {
         MatrixStack matrices = context.matrixStack();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
@@ -155,10 +209,10 @@ public final class OceanWorldRenderer {
             float blue = 0.58F * light;
             float alpha = 0.72F;
 
-            emit(builder, matrix, camera, topLeft, red, green, blue, alpha);
-            emit(builder, matrix, camera, bottomLeft, red, green, blue, alpha);
-            emit(builder, matrix, camera, bottomRight, red, green, blue, alpha);
-            emit(builder, matrix, camera, topRight, red, green, blue, alpha);
+            emitCpu(builder, matrix, camera, topLeft, red, green, blue, alpha);
+            emitCpu(builder, matrix, camera, bottomLeft, red, green, blue, alpha);
+            emitCpu(builder, matrix, camera, bottomRight, red, green, blue, alpha);
+            emitCpu(builder, matrix, camera, topRight, red, green, blue, alpha);
         }
 
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
@@ -174,7 +228,7 @@ public final class OceanWorldRenderer {
         }
     }
 
-    private static void emit(
+    private static void emitCpu(
         VertexConsumer consumer,
         Matrix4f matrix,
         Vec3d camera,
