@@ -61,7 +61,7 @@ public final class OceanWorldRenderer {
         }
 
         Vec3d camera = context.camera().getPos();
-        float tickDelta = context.tickCounter().getGameTimeDeltaPartialTick(true);
+        float tickDelta = context.tickCounter().getTickDelta(true);
         OceanRenderFrame.Frame frame = OceanRenderFrame.prepare(
             true,
             quality,
