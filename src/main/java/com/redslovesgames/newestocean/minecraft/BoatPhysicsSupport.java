@@ -3,6 +3,8 @@ package com.redslovesgames.newestocean.minecraft;
 import com.redslovesgames.newestocean.NewestOcean;
 import com.redslovesgames.newestocean.math.Vec3;
 import com.redslovesgames.newestocean.ocean.OceanConditions;
+import com.redslovesgames.newestocean.ocean.OceanEnvironment;
+import com.redslovesgames.newestocean.ocean.OceanSeed;
 import com.redslovesgames.newestocean.ocean.OceanSurface;
 import com.redslovesgames.newestocean.physics.VesselPhysics;
 import net.minecraft.entity.vehicle.BoatEntity;
@@ -30,15 +32,22 @@ final class BoatPhysicsSupport {
 
         World world = boat.getWorld();
         double timeSeconds = world.getTime() * TICK_SECONDS;
-        OceanConditions dynamicConditions = OceanConditions.weather(
-            world.getRainGradient(1.0F),
-            world.getThunderGradient(1.0F),
+        long oceanSeed = world.isClient()
+            ? NewestOcean.ocean().seed()
+            : OceanSeed.derive(world.getSeed());
+
+        OceanConditions dynamicConditions = OceanEnvironment.conditions(
+            oceanSeed,
             baseWaterHeight,
-            Vec3.ZERO
+            timeSeconds,
+            world.getRainGradient(1.0F),
+            world.getThunderGradient(1.0F)
         );
         OceanConditions flatConditions = new OceanConditions(0.0, baseWaterHeight, Vec3.ZERO);
         VesselPhysics.State state = capture(boat);
-        OceanSurface ocean = NewestOcean.ocean();
+        OceanSurface ocean = world.isClient()
+            ? NewestOcean.ocean()
+            : com.redslovesgames.newestocean.ocean.ProceduralOcean.createDefault(oceanSeed);
 
         VesselPhysics.Result dynamic = VesselPhysics.solve(
             ocean,
