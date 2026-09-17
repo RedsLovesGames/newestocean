@@ -11,7 +11,7 @@ import net.minecraft.util.Identifier;
 public record OceanSeedPayload(long seed) implements CustomPayload {
     public static final Id<OceanSeedPayload> ID = new Id<>(Identifier.of(NewestOcean.MOD_ID, "ocean_seed"));
     public static final PacketCodec<RegistryByteBuf, OceanSeedPayload> CODEC = PacketCodec.tuple(
-            PacketCodecs.LONG,
+            PacketCodecs.VAR_LONG,
             OceanSeedPayload::seed,
             OceanSeedPayload::new
     );
