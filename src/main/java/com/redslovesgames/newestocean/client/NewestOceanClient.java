@@ -24,6 +24,7 @@ public final class NewestOceanClient implements ClientModInitializer {
             })
         );
 
+        OceanGpuShader.register();
         OceanWorldRenderer.register();
     }
 
