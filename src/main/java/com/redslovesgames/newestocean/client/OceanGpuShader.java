@@ -10,7 +10,7 @@ import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.util.Identifier;
 
-/** Owns the Phase 9 core shader and uploads the compact deterministic wave uniform payload. */
+/** Owns the ocean core shader and uploads deterministic wave and whitecap uniforms. */
 public final class OceanGpuShader {
     private static ShaderProgram program;
 
@@ -34,12 +34,18 @@ public final class OceanGpuShader {
         int visualWaveComponents,
         double timeSeconds,
         OceanConditions conditions,
+        OceanQuality quality,
+        double rainGradient,
+        double thunderGradient,
         double cameraX,
         double cameraY,
         double cameraZ
     ) {
         if (program == null) {
             throw new IllegalStateException("ocean shader has not loaded");
+        }
+        if (quality == null) {
+            throw new IllegalArgumentException("quality is required");
         }
 
         OceanGpuWaveData data = OceanGpuWaveData.from(ocean, visualWaveComponents);
@@ -50,6 +56,8 @@ public final class OceanGpuShader {
         set1("OceanWaterHeight", (float) (conditions.tideOffset() - cameraY));
         set2("OceanCameraXZ", (float) cameraX, (float) cameraZ);
         set1("OceanWaveCount", data.activeWaveCount());
+        set1("OceanFoamQuality", (float) OceanWhitecapModel.qualityScale(quality));
+        set1("OceanStormStrength", (float) OceanWhitecapModel.stormStrength(rainGradient, thunderGradient));
 
         for (int i = 0; i < OceanGpuWaveData.MAX_WAVES; i++) {
             OceanGpuWaveData.PackedWave wave = data.wave(i);
