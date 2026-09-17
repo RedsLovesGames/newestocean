@@ -87,6 +87,7 @@ final class BoatPhysicsSupport {
                     correction.contact().wetFraction(),
                     velocityPerSecond(boat),
                     correction.waveVelocity(),
+                    correction.surfaceNormal(),
                     forwardDirection(boat),
                     profile.beam(),
                     profile.length(),
@@ -163,7 +164,8 @@ final class BoatPhysicsSupport {
             dynamic.torque().subtract(flat.torque()),
             dynamic.contact(),
             poseTarget,
-            waveVelocity
+            waveVelocity,
+            centerWater.normal()
         );
     }
 
@@ -216,14 +218,16 @@ final class BoatPhysicsSupport {
         Vec3 torque,
         VesselPhysics.ContactState contact,
         OceanVesselPose.Angles poseTarget,
-        Vec3 waveVelocity
+        Vec3 waveVelocity,
+        Vec3 surfaceNormal
     ) {
         static final Correction ZERO = new Correction(
             Vec3.ZERO,
             Vec3.ZERO,
             new VesselPhysics.ContactState(0.0, 0.0, Vec3.ZERO, 0.0, 0.0, 0.0, 0.0),
             new OceanVesselPose.Angles(0.0, 0.0),
-            Vec3.ZERO
+            Vec3.ZERO,
+            Vec3.UP
         );
     }
 }
