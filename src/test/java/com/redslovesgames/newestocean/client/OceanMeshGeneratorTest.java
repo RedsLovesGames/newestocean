@@ -18,7 +18,7 @@ class OceanMeshGeneratorTest {
                 ocean,
                 plan,
                 12.5,
-                OceanConditions.calm()
+                OceanConditions.CALM
         );
 
         assertEquals(plan.vertexCount(), mesh.vertices().length);
@@ -34,7 +34,7 @@ class OceanMeshGeneratorTest {
                 ocean,
                 plan,
                 4.0,
-                OceanConditions.calm()
+                OceanConditions.CALM
         );
 
         boolean sawDisplacement = false;
