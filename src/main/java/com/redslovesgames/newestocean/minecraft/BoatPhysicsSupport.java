@@ -10,6 +10,7 @@ import com.redslovesgames.newestocean.physics.OceanVesselPose;
 import com.redslovesgames.newestocean.physics.VesselMotionController;
 import com.redslovesgames.newestocean.physics.VesselPhysics;
 import com.redslovesgames.newestocean.physics.VesselReentryDynamics;
+import com.redslovesgames.newestocean.physics.VesselWaveRidingDynamics;
 import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
@@ -45,13 +46,13 @@ final class BoatPhysicsSupport {
         }
 
         Correction correction = solveCorrection(boat, profile);
-        double relativeVerticalVelocity = verticalVelocityPerSecond(boat) - correction.waterVerticalVelocity();
+        double relativeVerticalVelocity = verticalVelocityPerSecond(boat) - correction.waveVelocity().y();
         VesselMotionController.State next = VesselMotionController.advance(
             previous,
             new VesselMotionController.Input(
                 correction.contact().wetFraction(),
                 verticalVelocityPerSecond(boat),
-                correction.waterVerticalVelocity(),
+                correction.waveVelocity().y(),
                 horizontalSpeedPerSecond(boat)
             )
         );
@@ -80,6 +81,22 @@ final class BoatPhysicsSupport {
         );
 
         Vec3 force = reentry.force();
+        if (next.mode() == VesselMotionController.Mode.DISPLACEMENT) {
+            VesselWaveRidingDynamics.Result riding = VesselWaveRidingDynamics.resolve(
+                new VesselWaveRidingDynamics.Input(
+                    correction.contact().wetFraction(),
+                    velocityPerSecond(boat),
+                    correction.waveVelocity(),
+                    forwardDirection(boat),
+                    profile.beam(),
+                    profile.length(),
+                    profile.parameters().mass(),
+                    profile.planingFactor()
+                )
+            );
+            force = force.add(riding.force());
+        }
+
         if (!next.allowDownwardWaterForce() && force.y() < 0.0) {
             force = new Vec3(force.x(), 0.0, force.z());
         }
@@ -133,19 +150,20 @@ final class BoatPhysicsSupport {
             profile.beam(),
             profile.length()
         );
-        double waterVerticalVelocity = ocean.sample(
+        OceanSurface.SurfaceSample centerWater = ocean.sample(
             boat.getX(),
             boat.getZ(),
             timeSeconds,
             dynamicConditions
-        ).surfaceVelocity().y();
+        );
+        Vec3 waveVelocity = centerWater.surfaceVelocity().subtract(dynamicConditions.current());
 
         return new Correction(
             dynamic.force().subtract(flat.force()),
             dynamic.torque().subtract(flat.torque()),
             dynamic.contact(),
             poseTarget,
-            waterVerticalVelocity
+            waveVelocity
         );
     }
 
@@ -162,6 +180,11 @@ final class BoatPhysicsSupport {
         );
     }
 
+    private static Vec3 velocityPerSecond(BoatEntity boat) {
+        Vec3d velocity = boat.getVelocity();
+        return new Vec3(velocity.x * 20.0, velocity.y * 20.0, velocity.z * 20.0);
+    }
+
     private static double verticalVelocityPerSecond(BoatEntity boat) {
         return boat.getVelocity().y * 20.0;
     }
@@ -171,21 +194,19 @@ final class BoatPhysicsSupport {
         return Math.hypot(velocity.x, velocity.z) * 20.0;
     }
 
-    private static VesselPhysics.State capture(BoatEntity boat) {
-        Vec3d velocity = boat.getVelocity();
-        Vec3 velocityPerSecond = new Vec3(
-            velocity.x * 20.0,
-            velocity.y * 20.0,
-            velocity.z * 20.0
-        );
+    private static Vec3 forwardDirection(BoatEntity boat) {
+        double yawRadians = Math.toRadians(-boat.getYaw());
+        return new Vec3(Math.sin(yawRadians), 0.0, Math.cos(yawRadians));
+    }
 
+    private static VesselPhysics.State capture(BoatEntity boat) {
         double yawRadians = Math.toRadians(-boat.getYaw());
         return new VesselPhysics.State(
             VesselPhysics.Pose.uprightYaw(
                 new Vec3(boat.getX(), boat.getY(), boat.getZ()),
                 yawRadians
             ),
-            velocityPerSecond,
+            velocityPerSecond(boat),
             Vec3.ZERO
         );
     }
@@ -195,14 +216,14 @@ final class BoatPhysicsSupport {
         Vec3 torque,
         VesselPhysics.ContactState contact,
         OceanVesselPose.Angles poseTarget,
-        double waterVerticalVelocity
+        Vec3 waveVelocity
     ) {
         static final Correction ZERO = new Correction(
             Vec3.ZERO,
             Vec3.ZERO,
             new VesselPhysics.ContactState(0.0, 0.0, Vec3.ZERO, 0.0, 0.0, 0.0, 0.0),
             new OceanVesselPose.Angles(0.0, 0.0),
-            0.0
+            Vec3.ZERO
         );
     }
 }
