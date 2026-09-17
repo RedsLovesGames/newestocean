@@ -93,4 +93,14 @@ class VesselMotionControllerTest {
 
         assertEquals(VesselMotionController.Mode.DISPLACEMENT, state.mode());
     }
+
+    @Test
+    void completelyDryVesselCannotStartWaveLaunch() {
+        VesselMotionController.State state = VesselMotionController.advance(
+            VesselMotionController.State.initial(),
+            new VesselMotionController.Input(0.0, 2.0, 0.0, 4.0)
+        );
+
+        assertEquals(VesselMotionController.Mode.DISPLACEMENT, state.mode());
+    }
 }
