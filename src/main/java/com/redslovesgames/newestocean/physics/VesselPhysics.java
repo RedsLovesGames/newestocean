@@ -35,6 +35,13 @@ public final class VesselPhysics {
         double submersionSum = 0.0;
         int wetPoints = 0;
 
+        double weightedSubmersion = 0.0;
+        Vec3 weightedContactCenter = Vec3.ZERO;
+        double bowLoad = 0.0;
+        double sternLoad = 0.0;
+        double portLoad = 0.0;
+        double starboardLoad = 0.0;
+
         for (BuoyancyPoint point : points) {
             double normalizedWeight = point.weight() / totalWeight;
             Vec3 leverArm = state.pose().transformDirection(point.localPosition());
@@ -47,8 +54,22 @@ public final class VesselPhysics {
             }
 
             double submersion = clamp01(depth / parameters.maxSubmersionDepth());
+            double contactLoad = normalizedWeight * submersion;
             wetPoints++;
             submersionSum += submersion;
+            weightedSubmersion += contactLoad;
+            weightedContactCenter = weightedContactCenter.add(point.localPosition().multiply(contactLoad));
+
+            if (point.localPosition().z() >= 0.0) {
+                bowLoad += contactLoad;
+            } else {
+                sternLoad += contactLoad;
+            }
+            if (point.localPosition().x() < 0.0) {
+                portLoad += contactLoad;
+            } else {
+                starboardLoad += contactLoad;
+            }
 
             Vec3 pointVelocity = state.linearVelocity().add(state.angularVelocity().cross(leverArm));
             Vec3 relativeVelocity = pointVelocity.subtract(water.surfaceVelocity());
@@ -84,7 +105,19 @@ public final class VesselPhysics {
         }
 
         double averageSubmersion = wetPoints == 0 ? 0.0 : submersionSum / wetPoints;
-        return new Result(totalForce, totalTorque, wetPoints, averageSubmersion);
+        Vec3 localCenter = weightedSubmersion <= 1.0e-12
+            ? Vec3.ZERO
+            : weightedContactCenter.multiply(1.0 / weightedSubmersion);
+        ContactState contact = new ContactState(
+            (double) wetPoints / points.size(),
+            weightedSubmersion,
+            localCenter,
+            bowLoad,
+            sternLoad,
+            portLoad,
+            starboardLoad
+        );
+        return new Result(totalForce, totalTorque, wetPoints, averageSubmersion, contact);
     }
 
     private static double clamp01(double value) {
@@ -176,10 +209,48 @@ public final class VesselPhysics {
         }
     }
 
-    public record Result(Vec3 force, Vec3 torque, int wetPoints, double averageSubmersion) {
+    public record ContactState(
+        double wetFraction,
+        double weightedSubmersion,
+        Vec3 localCenter,
+        double bowLoad,
+        double sternLoad,
+        double portLoad,
+        double starboardLoad
+    ) {
+        public ContactState {
+            if (!Double.isFinite(wetFraction) || wetFraction < 0.0 || wetFraction > 1.0) {
+                throw new IllegalArgumentException("wetFraction must be between 0 and 1");
+            }
+            if (!Double.isFinite(weightedSubmersion) || weightedSubmersion < 0.0 || weightedSubmersion > 1.0) {
+                throw new IllegalArgumentException("weightedSubmersion must be between 0 and 1");
+            }
+            if (localCenter == null) {
+                throw new IllegalArgumentException("localCenter cannot be null");
+            }
+            requireUnitLoad(bowLoad, "bowLoad");
+            requireUnitLoad(sternLoad, "sternLoad");
+            requireUnitLoad(portLoad, "portLoad");
+            requireUnitLoad(starboardLoad, "starboardLoad");
+        }
+
+        private static void requireUnitLoad(double value, String name) {
+            if (!Double.isFinite(value) || value < 0.0 || value > 1.0) {
+                throw new IllegalArgumentException(name + " must be between 0 and 1");
+            }
+        }
+    }
+
+    public record Result(
+        Vec3 force,
+        Vec3 torque,
+        int wetPoints,
+        double averageSubmersion,
+        ContactState contact
+    ) {
         public Result {
-            if (force == null || torque == null) {
-                throw new IllegalArgumentException("result vectors cannot be null");
+            if (force == null || torque == null || contact == null) {
+                throw new IllegalArgumentException("result values cannot be null");
             }
             if (wetPoints < 0) {
                 throw new IllegalArgumentException("wetPoints cannot be negative");
