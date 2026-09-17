@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "com.redslovesgames.newestocean.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "BoatEntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
