@@ -24,8 +24,12 @@ import org.joml.Matrix4f;
 public final class OceanWorldRenderer {
     private static final OceanLodTopology.Cache TOPOLOGY_CACHE = new OceanLodTopology.Cache();
     private static final int COVERAGE_REFRESH_TICKS = 100;
+    private static final double TARGET_FRAME_MS = 1000.0 / 60.0;
+    private static final AdaptiveQualityFrameSampler ADAPTIVE_QUALITY =
+        new AdaptiveQualityFrameSampler(OceanQuality.MEDIUM, TARGET_FRAME_MS);
 
     private static volatile OceanQuality quality = OceanQuality.MEDIUM;
+    private static volatile boolean adaptiveQualityEnabled = true;
     private static OceanLodCoverageMask coverage;
     private static OceanQuality coverageQuality;
     private static double coverageOriginX = Double.NaN;
@@ -44,17 +48,29 @@ public final class OceanWorldRenderer {
         return quality;
     }
 
+    public static boolean isAdaptiveQualityEnabled() {
+        return adaptiveQualityEnabled;
+    }
+
+    public static void setAdaptiveQualityEnabled(boolean enabled) {
+        adaptiveQualityEnabled = enabled;
+        ADAPTIVE_QUALITY.forceQuality(quality);
+    }
+
     public static void setQuality(OceanQuality newQuality) {
         if (newQuality == null) {
             throw new IllegalArgumentException("quality is required");
         }
-        if (quality != newQuality) {
-            quality = newQuality;
-            reset();
-        }
+        ADAPTIVE_QUALITY.forceQuality(newQuality);
+        applyQuality(newQuality);
     }
 
     public static void reset() {
+        resetCoverage();
+        ADAPTIVE_QUALITY.reset();
+    }
+
+    private static void resetCoverage() {
         coverage = null;
         coverageQuality = null;
         coverageOriginX = Double.NaN;
@@ -63,11 +79,29 @@ public final class OceanWorldRenderer {
         coverageBuiltAtTick = Long.MIN_VALUE;
     }
 
+    private static void applyQuality(OceanQuality newQuality) {
+        if (quality != newQuality) {
+            quality = newQuality;
+            resetCoverage();
+        }
+    }
+
+    private static void sampleAdaptiveQuality() {
+        if (!adaptiveQualityEnabled) {
+            return;
+        }
+        ADAPTIVE_QUALITY.recordTimestampNanos(System.nanoTime())
+            .ifPresent(OceanWorldRenderer::applyQuality);
+    }
+
     private static void render(WorldRenderContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (!NewestOceanClient.isOceanSynchronized() || client.world == null || context.matrixStack() == null) {
+            ADAPTIVE_QUALITY.reset();
             return;
         }
+
+        sampleAdaptiveQuality();
 
         Vec3d camera = context.camera().getPos();
         float tickDelta = context.tickCounter().getTickDelta(true);
