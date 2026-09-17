@@ -11,6 +11,7 @@ public final class NewestOcean implements ModInitializer {
     public static final String MOD_ID = "newestocean";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
+    private static volatile long oceanSeed;
     private static volatile ProceduralOcean ocean = ProceduralOcean.createDefault(0L);
 
     @Override
@@ -24,7 +25,12 @@ public final class NewestOcean implements ModInitializer {
         return ocean;
     }
 
+    public static long oceanSeed() {
+        return oceanSeed;
+    }
+
     public static void setOceanSeed(long seed) {
+        oceanSeed = seed;
         ocean = ProceduralOcean.createDefault(seed);
     }
 
