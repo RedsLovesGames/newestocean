@@ -2,9 +2,13 @@ package com.redslovesgames.newestocean.minecraft;
 
 import com.redslovesgames.newestocean.NewestOcean;
 import com.redslovesgames.newestocean.math.Vec3;
+import com.redslovesgames.newestocean.ocean.LimitedOceanSurface;
 import com.redslovesgames.newestocean.ocean.OceanConditions;
 import com.redslovesgames.newestocean.ocean.OceanEnvironment;
+import com.redslovesgames.newestocean.ocean.OceanSpectrum;
 import com.redslovesgames.newestocean.ocean.OceanSurface;
+import com.redslovesgames.newestocean.ocean.ProceduralOcean;
+import com.redslovesgames.newestocean.ocean.ShoreAttenuatedOceanSurface;
 import com.redslovesgames.newestocean.physics.AdaptiveHullProfile;
 import com.redslovesgames.newestocean.physics.OceanVesselPose;
 import com.redslovesgames.newestocean.physics.VesselMotionController;
@@ -14,8 +18,12 @@ import com.redslovesgames.newestocean.physics.VesselReentryDynamics;
 import com.redslovesgames.newestocean.physics.VesselWaveRidingDynamics;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.vehicle.BoatEntity;
+import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
@@ -27,6 +35,7 @@ final class BoatPhysicsSupport {
     private static final double BLOCKS_PER_SECOND_TO_BLOCKS_PER_TICK = 1.0 / 20.0;
     private static final Map<BoatEntity, VesselMotionController.State> MOTION_STATES = new WeakHashMap<>();
     private static final Map<BoatEntity, LodRuntime> LOD_STATES = new WeakHashMap<>();
+    private static final Map<BoatEntity, VesselShoreDistanceCache> SHORE_CACHES = new WeakHashMap<>();
 
     private BoatPhysicsSupport() {
     }
@@ -156,7 +165,7 @@ final class BoatPhysicsSupport {
         );
         OceanConditions flatConditions = new OceanConditions(0.0, baseWaterHeight, Vec3.ZERO);
         VesselPhysics.State state = capture(boat);
-        OceanSurface ocean = NewestOcean.serverOcean();
+        OceanSurface ocean = physicalSurface(boat, baseWaterHeight);
         VesselPhysics.Parameters parameters = profile.parameters();
 
         VesselPhysics.Result dynamic = VesselPhysics.solve(
@@ -202,6 +211,38 @@ final class BoatPhysicsSupport {
             waveVelocity,
             centerWater.normal()
         );
+    }
+
+    private static OceanSurface physicalSurface(BoatEntity boat, double baseWaterHeight) {
+        ProceduralOcean source = NewestOcean.serverOcean();
+        int physicalComponents = Math.min(OceanSpectrum.PHYSICS_COMPONENTS, source.componentCount());
+        OceanSurface dominant = new LimitedOceanSurface(source, physicalComponents);
+        int waterY = MathHelper.floor(baseWaterHeight - 1.0e-4);
+        VesselShoreDistanceCache shore = SHORE_CACHES.computeIfAbsent(
+            boat,
+            ignored -> new VesselShoreDistanceCache(serverShoreProbe(boat.getWorld()))
+        );
+        return new ShoreAttenuatedOceanSurface(
+            dominant,
+            (x, z) -> shore.distanceToLand(x, z, waterY)
+        );
+    }
+
+    private static VesselShoreDistanceCache.CellProbe serverShoreProbe(World world) {
+        if (!(world instanceof ServerWorld serverWorld)) {
+            return (x, y, z) -> VesselShoreDistanceCache.CellState.UNKNOWN;
+        }
+        BlockPos.Mutable pos = new BlockPos.Mutable();
+        return (x, y, z) -> {
+            long chunkPos = ChunkPos.toLong(x >> 4, z >> 4);
+            if (!serverWorld.isChunkLoaded(chunkPos)) {
+                return VesselShoreDistanceCache.CellState.UNKNOWN;
+            }
+            pos.set(x, y, z);
+            return serverWorld.getFluidState(pos).isIn(FluidTags.WATER)
+                ? VesselShoreDistanceCache.CellState.WATER
+                : VesselShoreDistanceCache.CellState.LAND;
+        };
     }
 
     static void applyForceCorrection(BoatEntity boat, Vec3 force, VesselPhysics.Parameters parameters) {
