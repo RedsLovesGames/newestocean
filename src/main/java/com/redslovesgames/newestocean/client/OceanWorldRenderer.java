@@ -157,9 +157,10 @@ public final class OceanWorldRenderer {
             topology,
             shoreline,
             rainGradient,
-            thunderGradient
+            thunderGradient,
+            compatibility
         );
-        VesselWakeRenderer.render(context, camera, frame, quality);
+        VesselWakeRenderer.render(context, camera, frame, quality, compatibility);
     }
 
     private static OceanLodCoverageMask coverageFor(
