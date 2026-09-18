@@ -3,6 +3,7 @@ package com.redslovesgames.newestocean.client;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -48,6 +49,41 @@ class ShorelineAnalyzerTest {
         }, (x, z) -> x < 2);
         int cell = findCell(fixture.topology(), 1.5, 0.5);
         assertEquals(12.0, fixture.field().sample(cell).depthBlocks(), 1.0e-9);
+    }
+
+    @Test
+    void deepWaterSkipsHorizontalShoreSearch() {
+        OceanLodPlanner.Plan plan = new OceanLodPlanner.Plan(
+            OceanQuality.MEDIUM,
+            0.0,
+            0.0,
+            List.of(new OceanLodPlanner.Ring(0, 4, 1)),
+            4
+        );
+        OceanLodTopology topology = OceanLodTopology.build(plan);
+        OceanLodCoverageMask coverage = OceanLodCoverageMask.build(
+            plan,
+            topology,
+            (x, z) -> x >= 0.0 && x < 1.0 && z >= 0.0 && z < 1.0
+        );
+        AtomicInteger offColumnSurfaceProbes = new AtomicInteger();
+        ShorelineField field = ShorelineAnalyzer.build(
+            plan,
+            topology,
+            coverage,
+            SEA_LEVEL,
+            OceanQuality.MEDIUM,
+            (x, y, z) -> {
+                if (y == SEA_LEVEL - 1 && (x != 0 || z != 0)) {
+                    offColumnSurfaceProbes.incrementAndGet();
+                }
+                return true;
+            }
+        );
+
+        int cell = findCell(topology, 0.5, 0.5);
+        assertSame(ShorelineSample.NONE, field.sample(cell));
+        assertEquals(0, offColumnSurfaceProbes.get());
     }
 
     @Test
