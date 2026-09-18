@@ -2,13 +2,9 @@ package com.redslovesgames.newestocean.ocean;
 
 import com.redslovesgames.newestocean.math.Vec3;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.SplittableRandom;
 
 public final class ProceduralOcean implements OceanSurface {
-    private static final double TWO_PI = Math.PI * 2.0;
-
     private final long seed;
     private final List<WaveComponent> components;
 
@@ -21,57 +17,31 @@ public final class ProceduralOcean implements OceanSurface {
     }
 
     public static ProceduralOcean createDefault(long seed) {
-        SplittableRandom random = new SplittableRandom(seed ^ 0x4F4345414E4C4F4EL);
-        double dominantDirection = random.nextDouble(0.0, TWO_PI);
-
-        List<WaveComponent> waves = new ArrayList<>(6);
-        waves.add(createBand(random, dominantDirection, Math.toRadians(10.0), 0.34, 0.52, 52.0, 84.0, 0.34, 0.46));
-        waves.add(createBand(random, dominantDirection, Math.toRadians(18.0), 0.22, 0.36, 30.0, 50.0, 0.38, 0.52));
-        waves.add(createBand(random, dominantDirection, Math.toRadians(28.0), 0.14, 0.24, 17.0, 30.0, 0.42, 0.58));
-        waves.add(createBand(random, dominantDirection, Math.toRadians(42.0), 0.08, 0.15, 9.0, 17.0, 0.44, 0.62));
-        waves.add(createBand(random, dominantDirection, Math.toRadians(65.0), 0.04, 0.09, 4.5, 9.0, 0.40, 0.58));
-        waves.add(createBand(random, dominantDirection, Math.toRadians(90.0), 0.02, 0.05, 2.5, 5.0, 0.32, 0.50));
-
-        return new ProceduralOcean(seed, waves);
-    }
-
-    private static WaveComponent createBand(
-        SplittableRandom random,
-        double dominantDirection,
-        double spread,
-        double minAmplitude,
-        double maxAmplitude,
-        double minWavelength,
-        double maxWavelength,
-        double minSteepness,
-        double maxSteepness
-    ) {
-        double direction = dominantDirection + random.nextDouble(-spread, spread);
-        double amplitude = random.nextDouble(minAmplitude, maxAmplitude);
-        double wavelength = random.nextDouble(minWavelength, maxWavelength);
-        double phase = random.nextDouble(0.0, TWO_PI);
-        double steepness = random.nextDouble(minSteepness, maxSteepness);
-        double speedScale = random.nextDouble(0.48, 0.62);
-
-        return WaveComponent.deepWater(
-            amplitude,
-            wavelength,
-            Math.cos(direction),
-            Math.sin(direction),
-            phase,
-            steepness,
-            speedScale
-        );
+        return new ProceduralOcean(seed, OceanSpectrum.generate(seed).components());
     }
 
     @Override
     public SurfaceSample sample(double x, double z, double timeSeconds, OceanConditions conditions) {
-        return sample(x, z, timeSeconds, conditions, components.size());
+        return samplePhysical(x, z, timeSeconds, conditions);
     }
 
     /**
-     * Samples only the largest {@code componentLimit} waves. Physical simulation should use the
-     * four-argument overload, while rendering may lower this value on weaker hardware.
+     * Samples the fixed dominant physical subset used by authoritative simulation.
+     * Custom one-off oceans with fewer components use all components they contain.
+     */
+    public SurfaceSample samplePhysical(double x, double z, double timeSeconds, OceanConditions conditions) {
+        return sample(
+            x,
+            z,
+            timeSeconds,
+            conditions,
+            Math.min(OceanSpectrum.PHYSICS_COMPONENTS, components.size())
+        );
+    }
+
+    /**
+     * Samples only the longest {@code componentLimit} waves. Rendering may increase or lower this
+     * visible budget, while authoritative physics should use {@link #samplePhysical(double, double, double, OceanConditions)}.
      */
     public SurfaceSample sample(
         double x,
@@ -98,11 +68,17 @@ public final class ProceduralOcean implements OceanSurface {
             );
         }
 
-        double height = conditions.tideOffset();
-        double slopeX = 0.0;
-        double slopeZ = 0.0;
         double displacementX = 0.0;
+        double displacementY = 0.0;
         double displacementZ = 0.0;
+
+        double tangentXx = 1.0;
+        double tangentXy = 0.0;
+        double tangentXz = 0.0;
+        double tangentZx = 0.0;
+        double tangentZy = 0.0;
+        double tangentZz = 1.0;
+
         double velocityX = conditions.current().x();
         double velocityY = conditions.current().y();
         double velocityZ = conditions.current().z();
@@ -110,30 +86,46 @@ public final class ProceduralOcean implements OceanSurface {
         for (int i = 0; i < componentLimit; i++) {
             WaveComponent wave = components.get(i);
             double amplitude = wave.amplitude() * conditions.waveScale();
-            double k = wave.waveNumber();
-            double theta = k * (wave.directionX() * x + wave.directionZ() * z)
+            double waveNumber = wave.waveNumber();
+            double directionX = wave.directionX();
+            double directionZ = wave.directionZ();
+            double theta = waveNumber * (directionX * x + directionZ * z)
                 - wave.angularFrequency() * timeSeconds
                 + wave.phase();
             double sin = Math.sin(theta);
             double cos = Math.cos(theta);
+            double steepnessAmplitude = wave.steepness() * amplitude;
 
-            height += amplitude * sin;
-            slopeX += amplitude * k * wave.directionX() * cos;
-            slopeZ += amplitude * k * wave.directionZ() * cos;
+            displacementX += steepnessAmplitude * directionX * cos;
+            displacementY += amplitude * sin;
+            displacementZ += steepnessAmplitude * directionZ * cos;
 
-            double horizontalAmount = wave.steepness() * amplitude * cos;
-            displacementX += horizontalAmount * wave.directionX();
-            displacementZ += horizontalAmount * wave.directionZ();
+            double horizontalDerivative = steepnessAmplitude * waveNumber * sin;
+            tangentXx -= horizontalDerivative * directionX * directionX;
+            tangentXy += amplitude * waveNumber * directionX * cos;
+            tangentXz -= horizontalDerivative * directionX * directionZ;
+            tangentZx -= horizontalDerivative * directionX * directionZ;
+            tangentZy += amplitude * waveNumber * directionZ * cos;
+            tangentZz -= horizontalDerivative * directionZ * directionZ;
 
-            double horizontalVelocity = wave.steepness() * amplitude * wave.angularFrequency() * sin;
-            velocityX += horizontalVelocity * wave.directionX();
+            double horizontalVelocity = steepnessAmplitude * wave.angularFrequency() * sin;
+            velocityX += horizontalVelocity * directionX;
             velocityY -= amplitude * wave.angularFrequency() * cos;
-            velocityZ += horizontalVelocity * wave.directionZ();
+            velocityZ += horizontalVelocity * directionZ;
         }
 
-        Vec3 normal = new Vec3(-slopeX, 1.0, -slopeZ).normalize();
+        Vec3 tangentX = new Vec3(tangentXx, tangentXy, tangentXz);
+        Vec3 tangentZ = new Vec3(tangentZx, tangentZy, tangentZz);
+        Vec3 normal = tangentZ.cross(tangentX).normalize();
+        if (normal.lengthSquared() < 1.0e-18) {
+            normal = Vec3.UP;
+        } else if (normal.y() < 0.0) {
+            normal = normal.multiply(-1.0);
+        }
+
+        Vec3 displacement = new Vec3(displacementX, displacementY, displacementZ);
         Vec3 velocity = new Vec3(velocityX, velocityY, velocityZ);
-        Vec3 displacement = new Vec3(displacementX, 0.0, displacementZ);
+        double height = conditions.tideOffset() + displacementY;
         return new SurfaceSample(height, normal, velocity, displacement);
     }
 
