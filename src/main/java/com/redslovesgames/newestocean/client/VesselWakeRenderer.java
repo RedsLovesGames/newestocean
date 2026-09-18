@@ -54,13 +54,14 @@ public final class VesselWakeRenderer {
         int requestedWaves = config.effectiveVisualWaveComponents(frame.plan().visualWaveComponents());
         int visualWaveComponents = compatibility.visualWaveComponents(requestedWaves);
         if (compatibility.allowCustomShaders() && VesselWakeShader.available()) {
-            drawGpu(camera, frame, trails, config.wakeIntensity(), visualWaveComponents);
+            drawGpu(context, camera, frame, trails, config.wakeIntensity(), visualWaveComponents);
         } else {
             drawCpu(context, camera, frame, trails, compatibility, config.wakeIntensity(), visualWaveComponents);
         }
     }
 
     private static void drawGpu(
+        WorldRenderContext context,
         Vec3d camera,
         OceanRenderFrame.Frame frame,
         List<VesselWakeTracker.Trail> trails,
@@ -86,7 +87,8 @@ public final class VesselWakeRenderer {
             camera.y,
             camera.z
         );
-        OceanRenderState.drawTwoSided(builder);
+        Matrix4f cameraMatrix = context.matrixStack().peek().getPositionMatrix();
+        OceanRenderState.drawTwoSided(builder, cameraMatrix);
     }
 
     private static void drawCpu(
