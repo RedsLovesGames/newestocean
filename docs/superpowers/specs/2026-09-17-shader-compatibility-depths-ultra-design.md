@@ -90,17 +90,23 @@ Newest Ocean must not require Iris to load.
 
 Use Fabric Loader to check whether mod id `iris` is present. When present, resolve the Iris API reflectively and cache the reflective handles once.
 
-Required calls, when available:
+Required active-state calls, when available:
 
 - `IrisApi.getInstance()`
 - `isShaderPackInUse()`
 - `isRenderingShadowPass()`
-- `getConfig()`
-- `IrisApiConfig.getShaderPackName()`
+
+Pack-name detection is best-effort and version-tolerant:
+
+1. first try `IrisApi.getInstance().getConfig()` and a reflective `getShaderPackName()` if the installed API exposes it,
+2. otherwise try the internal static `net.irisshaders.iris.Iris.getCurrentPackName()` reflectively if present,
+3. otherwise leave the pack name unknown and use `IRIS_GENERIC`.
+
+The internal name lookup is optional optimization only. Failure to resolve it must never prevent generic Iris compatibility.
 
 No Iris class may appear in a Newest Ocean method signature, field type, or static initializer that would load when Iris is absent.
 
-If Iris is loaded but reflective API resolution fails, compatibility must fail safe to the CPU path instead of attempting Newest Ocean custom shaders. Log the bridge failure only once.
+If Iris is loaded but reflective active-state API resolution fails, compatibility must fail safe to the CPU path instead of attempting Newest Ocean custom shaders. Log the bridge failure only once.
 
 If shaderpack-name lookup fails but `isShaderPackInUse()` succeeds, use `IRIS_GENERIC`.
 
@@ -210,6 +216,8 @@ Add deterministic unit/contract coverage for:
 - active shaderpack + shadow pass -> rendering skipped,
 - reflective bridge failure -> fail-safe CPU compatibility mode,
 - shaderpack toggle changes mode without restart,
+- public-config pack-name lookup unavailable -> internal-name fallback attempted,
+- all pack-name lookup unavailable -> `IRIS_GENERIC`,
 - DEPTHS CPU visual wave count capped at four while normal mode preserves the plan count,
 - DEPTHS visual tuning constants,
 - `OceanWorldRenderer` consults centralized compatibility state,
