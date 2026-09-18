@@ -21,7 +21,7 @@ class VesselWakeRendererContractTest {
         assertTrue(renderer.contains("VesselWakeTracker.snapshot"));
         assertTrue(renderer.contains("VesselWakeGeometry.segment"));
         assertTrue(renderer.contains("NewestOcean.clientOcean().sample"));
-        assertTrue(renderer.contains("RenderSystem.depthMask(false)"));
+        assertTrue(renderer.contains("OceanRenderState.drawTwoSided"));
         assertTrue(renderer.contains("OceanRenderCoordinates.relative"));
         assertTrue(oceanRenderer.contains("VesselWakeRenderer.render"));
     }
