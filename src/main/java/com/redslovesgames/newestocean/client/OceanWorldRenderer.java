@@ -20,7 +20,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
-/** Visible ocean renderer with cached coverage, shoreline effects, and GPU displacement when available. */
+/** Visible ocean renderer with cached coverage, shoreline effects, and shaderpack-safe fallbacks. */
 public final class OceanWorldRenderer {
     private static final OceanLodTopology.Cache TOPOLOGY_CACHE = new OceanLodTopology.Cache();
     private static final int COVERAGE_REFRESH_TICKS = 100;
@@ -103,6 +103,11 @@ public final class OceanWorldRenderer {
             return;
         }
 
+        ShaderCompatibility.Snapshot compatibility = ShaderCompatibility.current();
+        if (compatibility.skipWorldRender()) {
+            return;
+        }
+
         sampleAdaptiveQuality();
 
         Vec3d camera = context.camera().getPos();
@@ -129,18 +134,20 @@ public final class OceanWorldRenderer {
             return;
         }
 
-        if (OceanGpuShader.available()) {
+        if (compatibility.allowCustomShaders() && OceanGpuShader.available()) {
             drawGpu(camera, frame, topology, waterIndices, rainGradient, thunderGradient);
         } else {
+            int visualWaveComponents = compatibility.visualWaveComponents(frame.plan().visualWaveComponents());
             OceanLodMeshGenerator.Mesh mesh = OceanLodMeshGenerator.generate(
                 NewestOcean.clientOcean(),
                 frame.plan(),
                 topology,
                 currentCoverage,
                 frame.timeSeconds(),
-                frame.conditions()
+                frame.conditions(),
+                visualWaveComponents
             );
-            drawCpu(context, camera, mesh, frame, rainGradient, thunderGradient);
+            drawCpu(context, camera, mesh, frame, rainGradient, thunderGradient, compatibility);
         }
 
         ShorelineRenderer.render(
@@ -256,7 +263,8 @@ public final class OceanWorldRenderer {
         OceanLodMeshGenerator.Mesh mesh,
         OceanRenderFrame.Frame frame,
         float rainGradient,
-        float thunderGradient
+        float thunderGradient,
+        ShaderCompatibility.Snapshot compatibility
     ) {
         MatrixStack matrices = context.matrixStack();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
@@ -284,13 +292,15 @@ public final class OceanWorldRenderer {
             ) * 0.25;
             double crestHeight = Math.max(0.0, averageHeight - frame.conditions().tideOffset());
             double crestCurvature = crestHeight * (0.12 + 0.38 * Math.min(1.5, slopeMagnitude));
-            float foam = (float) OceanWhitecapModel.intensity(
-                slopeMagnitude,
-                crestCurvature,
-                rainGradient,
-                thunderGradient,
-                frame.plan().quality(),
-                1.0
+            float foam = (float) (
+                OceanWhitecapModel.intensity(
+                    slopeMagnitude,
+                    crestCurvature,
+                    rainGradient,
+                    thunderGradient,
+                    frame.plan().quality(),
+                    1.0
+                ) * compatibility.whitecapMultiplier()
             );
 
             float baseRed = 0.055F * light;
@@ -299,7 +309,8 @@ public final class OceanWorldRenderer {
             float red = baseRed + (0.93F - baseRed) * foam;
             float green = baseGreen + (0.97F - baseGreen) * foam;
             float blue = baseBlue + (1.00F - baseBlue) * foam;
-            float alpha = 0.72F + 0.16F * foam;
+            float baseAlpha = (float) compatibility.oceanBaseAlpha();
+            float alpha = Math.min(1.0F, baseAlpha + 0.16F * foam);
 
             emitCpu(builder, matrix, camera, topLeft, red, green, blue, alpha);
             emitCpu(builder, matrix, camera, bottomLeft, red, green, blue, alpha);
