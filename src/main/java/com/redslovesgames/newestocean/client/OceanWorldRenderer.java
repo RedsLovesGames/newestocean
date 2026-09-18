@@ -140,6 +140,8 @@ public final class OceanWorldRenderer {
             );
             drawCpu(context, camera, mesh, frame, rainGradient, thunderGradient);
         }
+
+        VesselWakeRenderer.render(context, camera, frame, quality);
     }
 
     private static OceanLodCoverageMask coverageFor(
