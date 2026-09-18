@@ -7,7 +7,6 @@ import com.redslovesgames.newestocean.ocean.ProceduralOcean;
 import com.redslovesgames.newestocean.ocean.WaveComponent;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexConsumer;
@@ -90,7 +89,7 @@ public final class ShorelineRenderer {
             camera.y,
             camera.z
         );
-        drawPrepared(builder);
+        OceanRenderState.drawTwoSided(builder);
     }
 
     private static void emitGpu(
@@ -173,7 +172,7 @@ public final class ShorelineRenderer {
             return;
         }
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-        drawPrepared(builder);
+        OceanRenderState.drawTwoSided(builder);
     }
 
     private static void emitCpu(
@@ -235,21 +234,6 @@ public final class ShorelineRenderer {
 
     private static double clamp01(double value) {
         return Math.max(0.0, Math.min(1.0, value));
-    }
-
-    private static void drawPrepared(BufferBuilder builder) {
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.enableDepthTest();
-        RenderSystem.disableCull();
-        RenderSystem.depthMask(false);
-        try {
-            BufferRenderer.drawWithGlobalProgram(builder.end());
-        } finally {
-            RenderSystem.depthMask(true);
-            RenderSystem.enableCull();
-            RenderSystem.disableBlend();
-        }
     }
 
     private record BreakInputs(double incomingAlignment, double waveEnergy) {
