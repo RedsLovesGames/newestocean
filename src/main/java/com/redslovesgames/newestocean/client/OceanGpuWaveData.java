@@ -55,31 +55,52 @@ public final class OceanGpuWaveData {
 
     Sample sampleReference(double x, double z, double timeSeconds, OceanConditions conditions) {
         double height = conditions.tideOffset();
-        double slopeX = 0.0;
-        double slopeZ = 0.0;
         double displacementX = 0.0;
         double displacementZ = 0.0;
+
+        double tangentXx = 1.0;
+        double tangentXy = 0.0;
+        double tangentXz = 0.0;
+        double tangentZx = 0.0;
+        double tangentZy = 0.0;
+        double tangentZz = 1.0;
 
         if (conditions.waveScale() != 0.0) {
             for (int i = 0; i < activeWaveCount; i++) {
                 PackedWave wave = waves[i];
                 double amplitude = wave.amplitude() * conditions.waveScale();
-                double theta = wave.waveNumber() * (wave.directionX() * x + wave.directionZ() * z)
+                double directionX = wave.directionX();
+                double directionZ = wave.directionZ();
+                double waveNumber = wave.waveNumber();
+                double theta = waveNumber * (directionX * x + directionZ * z)
                     - wave.angularFrequency() * timeSeconds
                     + wave.phase();
                 double sin = Math.sin(theta);
                 double cos = Math.cos(theta);
+                double steepnessAmplitude = wave.steepness() * amplitude;
 
                 height += amplitude * sin;
-                slopeX += amplitude * wave.waveNumber() * wave.directionX() * cos;
-                slopeZ += amplitude * wave.waveNumber() * wave.directionZ() * cos;
-                double horizontalAmount = wave.steepness() * amplitude * cos;
-                displacementX += horizontalAmount * wave.directionX();
-                displacementZ += horizontalAmount * wave.directionZ();
+                displacementX += steepnessAmplitude * cos * directionX;
+                displacementZ += steepnessAmplitude * cos * directionZ;
+
+                double horizontalDerivative = steepnessAmplitude * waveNumber * sin;
+                tangentXx -= horizontalDerivative * directionX * directionX;
+                tangentXy += amplitude * waveNumber * directionX * cos;
+                tangentXz -= horizontalDerivative * directionX * directionZ;
+                tangentZx -= horizontalDerivative * directionX * directionZ;
+                tangentZy += amplitude * waveNumber * directionZ * cos;
+                tangentZz -= horizontalDerivative * directionZ * directionZ;
             }
         }
 
-        Vec3 normal = new Vec3(-slopeX, 1.0, -slopeZ).normalize();
+        Vec3 tangentX = new Vec3(tangentXx, tangentXy, tangentXz);
+        Vec3 tangentZ = new Vec3(tangentZx, tangentZy, tangentZz);
+        Vec3 normal = tangentZ.cross(tangentX).normalize();
+        if (normal.lengthSquared() < 1.0e-18) {
+            normal = Vec3.UP;
+        } else if (normal.y() < 0.0) {
+            normal = normal.multiply(-1.0);
+        }
         return new Sample(height, displacementX, displacementZ, normal);
     }
 
