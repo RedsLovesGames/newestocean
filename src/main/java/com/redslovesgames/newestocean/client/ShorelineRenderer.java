@@ -32,18 +32,19 @@ public final class ShorelineRenderer {
         OceanLodTopology topology,
         ShorelineField shoreline,
         float rainGradient,
-        float thunderGradient
+        float thunderGradient,
+        ShaderCompatibility.Snapshot compatibility
     ) {
         if (context == null || camera == null || frame == null || topology == null || shoreline == null
-            || context.matrixStack() == null || shoreline.cellCount() != topology.cellCount()
+            || compatibility == null || context.matrixStack() == null || shoreline.cellCount() != topology.cellCount()
             || shoreline.influencedCellCount() == 0) {
             return;
         }
 
-        if (ShorelineGpuShader.available()) {
+        if (compatibility.allowCustomShaders() && ShorelineGpuShader.available()) {
             drawGpu(camera, frame, topology, shoreline, rainGradient, thunderGradient);
         } else {
-            drawCpu(context, camera, frame, topology, shoreline, rainGradient, thunderGradient);
+            drawCpu(context, camera, frame, topology, shoreline, rainGradient, thunderGradient, compatibility);
         }
     }
 
@@ -124,7 +125,8 @@ public final class ShorelineRenderer {
         OceanLodTopology topology,
         ShorelineField shoreline,
         float rainGradient,
-        float thunderGradient
+        float thunderGradient,
+        ShaderCompatibility.Snapshot compatibility
     ) {
         MatrixStack matrices = context.matrixStack();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
@@ -135,6 +137,8 @@ public final class ShorelineRenderer {
         OceanLodTopology.LocalVertex[] vertices = topology.vertices();
         ProceduralOcean ocean = NewestOcean.clientOcean();
         double storm = OceanWhitecapModel.stormStrength(rainGradient, thunderGradient);
+        int visualWaveComponents = compatibility.visualWaveComponents(frame.plan().visualWaveComponents());
+        double shorelineMultiplier = compatibility.shorelineMultiplier();
         boolean emitted = false;
 
         for (int cell = 0; cell < topology.cellCount(); cell++) {
@@ -143,7 +147,7 @@ public final class ShorelineRenderer {
                 continue;
             }
 
-            BreakInputs breakInputs = breakInputs(ocean, frame.plan().visualWaveComponents(), shore);
+            BreakInputs breakInputs = breakInputs(ocean, visualWaveComponents, shore);
             double strength = ShorelineBreakModel.breakerIntensity(
                 shore,
                 breakInputs.incomingAlignment(),
@@ -151,17 +155,17 @@ public final class ShorelineRenderer {
                 storm,
                 frame.plan().quality(),
                 1.0
-            );
+            ) * shorelineMultiplier;
             if (strength < MIN_CPU_ALPHA) {
                 continue;
             }
 
             float alpha = (float) Math.min(0.78, strength * (0.70 + 0.30 * shallowFactor(shore.depthBlocks())));
             int source = cell * 6;
-            emitCpu(builder, matrix, camera, frame, vertices[topology.indexAt(source)], alpha);
-            emitCpu(builder, matrix, camera, frame, vertices[topology.indexAt(source + 1)], alpha);
-            emitCpu(builder, matrix, camera, frame, vertices[topology.indexAt(source + 5)], alpha);
-            emitCpu(builder, matrix, camera, frame, vertices[topology.indexAt(source + 2)], alpha);
+            emitCpu(builder, matrix, camera, frame, vertices[topology.indexAt(source)], alpha, visualWaveComponents);
+            emitCpu(builder, matrix, camera, frame, vertices[topology.indexAt(source + 1)], alpha, visualWaveComponents);
+            emitCpu(builder, matrix, camera, frame, vertices[topology.indexAt(source + 5)], alpha, visualWaveComponents);
+            emitCpu(builder, matrix, camera, frame, vertices[topology.indexAt(source + 2)], alpha, visualWaveComponents);
             emitted = true;
         }
 
@@ -178,7 +182,8 @@ public final class ShorelineRenderer {
         Vec3d camera,
         OceanRenderFrame.Frame frame,
         OceanLodTopology.LocalVertex vertex,
-        float alpha
+        float alpha,
+        int visualWaveComponents
     ) {
         double baseX = frame.plan().originX() + vertex.x();
         double baseZ = frame.plan().originZ() + vertex.z();
@@ -187,7 +192,7 @@ public final class ShorelineRenderer {
             baseZ,
             frame.timeSeconds(),
             frame.conditions(),
-            frame.plan().visualWaveComponents()
+            visualWaveComponents
         );
         double worldX = baseX + sample.horizontalDisplacement().x();
         double worldY = sample.height() + SURFACE_LIFT;
