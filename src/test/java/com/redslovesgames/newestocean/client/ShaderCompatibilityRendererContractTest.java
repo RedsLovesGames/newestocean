@@ -15,7 +15,7 @@ class ShaderCompatibilityRendererContractTest {
             "src/main/java/com/redslovesgames/newestocean/client/OceanWorldRenderer.java"
         ));
 
-        assertTrue(source.contains("ShaderCompatibility.current()"));
+        assertTrue(source.contains("ShaderCompatibility.current(config)"));
         assertTrue(source.contains("compatibility.skipWorldRender()"));
         assertTrue(source.contains("compatibility.allowCustomShaders()"));
         assertTrue(source.contains("compatibility.visualWaveComponents"));
