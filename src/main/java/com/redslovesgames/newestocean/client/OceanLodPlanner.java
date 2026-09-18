@@ -8,12 +8,17 @@ public final class OceanLodPlanner {
     }
 
     public static Plan plan(OceanQuality quality, double cameraX, double cameraZ) {
-        if (quality == null || !Double.isFinite(cameraX) || !Double.isFinite(cameraZ)) {
-            throw new IllegalArgumentException("quality and finite camera coordinates are required");
+        return plan(quality, cameraX, cameraZ, 1.0);
+    }
+
+    public static Plan plan(OceanQuality quality, double cameraX, double cameraZ, double renderDistanceScale) {
+        if (quality == null || !Double.isFinite(cameraX) || !Double.isFinite(cameraZ)
+            || !Double.isFinite(renderDistanceScale) || renderDistanceScale <= 0.0) {
+            throw new IllegalArgumentException("quality, finite camera coordinates, and a positive render scale are required");
         }
 
-        int radius = quality.renderRadiusBlocks();
         int fineStep = quality.gridStepBlocks();
+        int radius = Math.max(fineStep * 3 + 2, (int) Math.round(quality.renderRadiusBlocks() * renderDistanceScale));
         int middleStep = fineStep * 2;
         int farStep = fineStep * 4;
 
