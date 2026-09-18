@@ -1,7 +1,6 @@
 package com.redslovesgames.newestocean.client;
 
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -143,18 +142,25 @@ public final class OceanLodTopology {
     public record LocalVertex(int x, int z) {
     }
 
+    private record TopologyKey(OceanQuality quality, List<OceanLodPlanner.Ring> rings) {
+        private TopologyKey(OceanLodPlanner.Plan plan) {
+            this(plan.quality(), plan.rings());
+        }
+    }
+
     public static final class Cache {
-        private final Map<OceanQuality, OceanLodTopology> byQuality = new EnumMap<>(OceanQuality.class);
+        private final Map<TopologyKey, OceanLodTopology> byPlanShape = new HashMap<>();
 
         public OceanLodTopology get(OceanLodPlanner.Plan plan) {
             if (plan == null) {
                 throw new IllegalArgumentException("plan is required");
             }
-            return byQuality.computeIfAbsent(plan.quality(), ignored -> OceanLodTopology.build(plan));
+            TopologyKey key = new TopologyKey(plan);
+            return byPlanShape.computeIfAbsent(key, ignored -> OceanLodTopology.build(plan));
         }
 
         public void clear() {
-            byQuality.clear();
+            byPlanShape.clear();
         }
     }
 }
