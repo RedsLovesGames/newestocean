@@ -5,6 +5,7 @@ import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -37,13 +38,14 @@ public final class NewestOceanMixinPlugin implements IMixinConfigPlugin {
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         FabricLoader loader = FabricLoader.getInstance();
-        if (mixinClassName.contains(IRIS_COMPAT_PACKAGE)) {
-            return loader.isModLoaded("iris");
+        Set<String> loadedRendererMods = new HashSet<>(2);
+        if (loader.isModLoaded("iris")) {
+            loadedRendererMods.add("iris");
         }
-        if (mixinClassName.contains(SODIUM_COMPAT_PACKAGE)) {
-            return loader.isModLoaded("sodium");
+        if (loader.isModLoaded("sodium")) {
+            loadedRendererMods.add("sodium");
         }
-        return true;
+        return shouldApplyMixin(mixinClassName, loadedRendererMods);
     }
 
     @Override
