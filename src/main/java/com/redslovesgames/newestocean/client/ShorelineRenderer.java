@@ -1,0 +1,252 @@
+package com.redslovesgames.newestocean.client;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.redslovesgames.newestocean.NewestOcean;
+import com.redslovesgames.newestocean.ocean.OceanSurface;
+import com.redslovesgames.newestocean.ocean.ProceduralOcean;
+import com.redslovesgames.newestocean.ocean.WaveComponent;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
+import net.minecraft.client.render.BufferBuilder;
+import net.minecraft.client.render.BufferRenderer;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix4f;
+
+/** Sparse visual shoreline overlay backed by cached terrain metrics. */
+public final class ShorelineRenderer {
+    private static final double SURFACE_LIFT = 0.035;
+    private static final double MIN_CPU_ALPHA = 0.025;
+
+    private ShorelineRenderer() {
+    }
+
+    public static void render(
+        WorldRenderContext context,
+        Vec3d camera,
+        OceanRenderFrame.Frame frame,
+        OceanLodTopology topology,
+        ShorelineField shoreline,
+        float rainGradient,
+        float thunderGradient
+    ) {
+        if (context == null || camera == null || frame == null || topology == null || shoreline == null
+            || context.matrixStack() == null || shoreline.cellCount() != topology.cellCount()
+            || shoreline.influencedCellCount() == 0) {
+            return;
+        }
+
+        if (ShorelineGpuShader.available()) {
+            drawGpu(camera, frame, topology, shoreline, rainGradient, thunderGradient);
+        } else {
+            drawCpu(context, camera, frame, topology, shoreline, rainGradient, thunderGradient);
+        }
+    }
+
+    private static void drawGpu(
+        Vec3d camera,
+        OceanRenderFrame.Frame frame,
+        OceanLodTopology topology,
+        ShorelineField shoreline,
+        float rainGradient,
+        float thunderGradient
+    ) {
+        BufferBuilder builder = Tessellator.getInstance().begin(
+            VertexFormat.DrawMode.QUADS,
+            VertexFormats.POSITION_COLOR
+        );
+        OceanLodTopology.LocalVertex[] vertices = topology.vertices();
+        boolean emitted = false;
+        for (int cell = 0; cell < topology.cellCount(); cell++) {
+            ShorelineSample sample = shoreline.sample(cell);
+            if (sample.shoreInfluence() <= 0.0) {
+                continue;
+            }
+            int source = cell * 6;
+            emitGpu(builder, camera, frame.plan(), vertices[topology.indexAt(source)], sample);
+            emitGpu(builder, camera, frame.plan(), vertices[topology.indexAt(source + 1)], sample);
+            emitGpu(builder, camera, frame.plan(), vertices[topology.indexAt(source + 5)], sample);
+            emitGpu(builder, camera, frame.plan(), vertices[topology.indexAt(source + 2)], sample);
+            emitted = true;
+        }
+        if (!emitted) {
+            return;
+        }
+
+        ShorelineGpuShader.apply(
+            NewestOcean.clientOcean(),
+            frame.plan().visualWaveComponents(),
+            frame.timeSeconds(),
+            frame.conditions(),
+            frame.plan().quality(),
+            rainGradient,
+            thunderGradient,
+            camera.x,
+            camera.y,
+            camera.z
+        );
+        drawPrepared(builder);
+    }
+
+    private static void emitGpu(
+        VertexConsumer consumer,
+        Vec3d camera,
+        OceanLodPlanner.Plan plan,
+        OceanLodTopology.LocalVertex vertex,
+        ShorelineSample sample
+    ) {
+        double worldX = plan.originX() + vertex.x();
+        double worldZ = plan.originZ() + vertex.z();
+        OceanRenderCoordinates.Relative relative = OceanRenderCoordinates.relative(
+            worldX,
+            camera.y + SURFACE_LIFT,
+            worldZ,
+            camera.x,
+            camera.y,
+            camera.z
+        );
+        float encodedDirectionX = (float) (sample.shoreDirectionX() * 0.5 + 0.5);
+        float encodedDirectionZ = (float) (sample.shoreDirectionZ() * 0.5 + 0.5);
+        float influence = (float) sample.shoreInfluence();
+        float shallow = (float) shallowFactor(sample.depthBlocks());
+        consumer.vertex((float) relative.x(), (float) relative.y(), (float) relative.z())
+            .color(encodedDirectionX, encodedDirectionZ, influence, shallow);
+    }
+
+    private static void drawCpu(
+        WorldRenderContext context,
+        Vec3d camera,
+        OceanRenderFrame.Frame frame,
+        OceanLodTopology topology,
+        ShorelineField shoreline,
+        float rainGradient,
+        float thunderGradient
+    ) {
+        MatrixStack matrices = context.matrixStack();
+        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        BufferBuilder builder = Tessellator.getInstance().begin(
+            VertexFormat.DrawMode.QUADS,
+            VertexFormats.POSITION_COLOR
+        );
+        OceanLodTopology.LocalVertex[] vertices = topology.vertices();
+        ProceduralOcean ocean = NewestOcean.clientOcean();
+        double storm = OceanWhitecapModel.stormStrength(rainGradient, thunderGradient);
+        boolean emitted = false;
+
+        for (int cell = 0; cell < topology.cellCount(); cell++) {
+            ShorelineSample shore = shoreline.sample(cell);
+            if (shore.shoreInfluence() <= 0.0) {
+                continue;
+            }
+
+            BreakInputs breakInputs = breakInputs(ocean, frame.plan().visualWaveComponents(), shore);
+            double strength = ShorelineBreakModel.breakerIntensity(
+                shore,
+                breakInputs.incomingAlignment(),
+                breakInputs.waveEnergy(),
+                storm,
+                frame.plan().quality(),
+                1.0
+            );
+            if (strength < MIN_CPU_ALPHA) {
+                continue;
+            }
+
+            float alpha = (float) Math.min(0.78, strength * (0.70 + 0.30 * shallowFactor(shore.depthBlocks())));
+            int source = cell * 6;
+            emitCpu(builder, matrix, camera, frame, vertices[topology.indexAt(source)], alpha);
+            emitCpu(builder, matrix, camera, frame, vertices[topology.indexAt(source + 1)], alpha);
+            emitCpu(builder, matrix, camera, frame, vertices[topology.indexAt(source + 5)], alpha);
+            emitCpu(builder, matrix, camera, frame, vertices[topology.indexAt(source + 2)], alpha);
+            emitted = true;
+        }
+
+        if (!emitted) {
+            return;
+        }
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        drawPrepared(builder);
+    }
+
+    private static void emitCpu(
+        VertexConsumer consumer,
+        Matrix4f matrix,
+        Vec3d camera,
+        OceanRenderFrame.Frame frame,
+        OceanLodTopology.LocalVertex vertex,
+        float alpha
+    ) {
+        double baseX = frame.plan().originX() + vertex.x();
+        double baseZ = frame.plan().originZ() + vertex.z();
+        OceanSurface.SurfaceSample sample = NewestOcean.clientOcean().sample(
+            baseX,
+            baseZ,
+            frame.timeSeconds(),
+            frame.conditions(),
+            frame.plan().visualWaveComponents()
+        );
+        double worldX = baseX + sample.horizontalDisplacement().x();
+        double worldY = sample.height() + SURFACE_LIFT;
+        double worldZ = baseZ + sample.horizontalDisplacement().z();
+        OceanRenderCoordinates.Relative relative = OceanRenderCoordinates.relative(
+            worldX,
+            worldY,
+            worldZ,
+            camera.x,
+            camera.y,
+            camera.z
+        );
+        consumer.vertex(matrix, (float) relative.x(), (float) relative.y(), (float) relative.z())
+            .color(0.93F, 0.98F, 1.0F, alpha);
+    }
+
+    private static BreakInputs breakInputs(ProceduralOcean ocean, int componentLimit, ShorelineSample shore) {
+        double weightedIncoming = 0.0;
+        double totalWeight = 0.0;
+        double totalEnergy = 0.0;
+        int limit = Math.min(componentLimit, ocean.components().size());
+        for (int index = 0; index < limit; index++) {
+            WaveComponent wave = ocean.components().get(index);
+            double weight = wave.amplitude() * (0.35 + 0.65 * wave.steepness());
+            double incoming = Math.max(
+                0.0,
+                wave.directionX() * shore.shoreDirectionX() + wave.directionZ() * shore.shoreDirectionZ()
+            );
+            weightedIncoming += incoming * weight;
+            totalWeight += weight;
+            totalEnergy += wave.amplitude() * wave.steepness();
+        }
+        double alignment = totalWeight > 1.0e-9 ? weightedIncoming / totalWeight : 0.0;
+        return new BreakInputs(clamp01(alignment), clamp01(totalEnergy));
+    }
+
+    private static double shallowFactor(double depthBlocks) {
+        return clamp01(1.0 - (depthBlocks - 1.0) / 9.0);
+    }
+
+    private static double clamp01(double value) {
+        return Math.max(0.0, Math.min(1.0, value));
+    }
+
+    private static void drawPrepared(BufferBuilder builder) {
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
+        RenderSystem.disableCull();
+        RenderSystem.depthMask(false);
+        try {
+            BufferRenderer.drawWithGlobalProgram(builder.end());
+        } finally {
+            RenderSystem.depthMask(true);
+            RenderSystem.enableCull();
+            RenderSystem.disableBlend();
+        }
+    }
+
+    private record BreakInputs(double incomingAlignment, double waveEnergy) {
+    }
+}
