@@ -47,9 +47,11 @@ Wake width scales from vessel beam and expands gradually behind the vessel. Geom
 
 ## Following the waves
 
-Wake foam does not stay at a fixed sea-level Y coordinate. The renderer samples the same synchronized procedural ocean used by the visible ocean surface.
+Wake foam does not stay at a fixed sea-level Y coordinate.
 
-For performance, the ocean height is evaluated once per wake history point and reused across that point's arm and center-strip vertices. This keeps the wake attached to the moving sea while avoiding redundant six-wave evaluations for every quad corner.
+The preferred path uses the dedicated `newestocean:vessel_wake` core shader. The CPU submits sparse camera-relative wake strips plus strength/edge data, and the wake vertex shader applies the same packed Gerstner wave components used by the ocean renderer. This moves wake conformance to the GPU and avoids repeated CPU trigonometric sampling on the normal path.
+
+If the wake shader is unavailable, a CPU fallback samples the synchronized procedural ocean and applies height plus horizontal Gerstner displacement before drawing. The fallback preserves visible wakes instead of making them disappear when the custom shader cannot load.
 
 ## Rendering
 
@@ -57,10 +59,13 @@ Wake rendering runs immediately after the ocean surface in the existing `AFTER_T
 
 The pass uses:
 
-- `POSITION_COLOR` quads
-- pale foam color
+- sparse `POSITION_COLOR` wake quads
+- a dedicated GPU wake shader when available
+- CPU procedural-ocean fallback
+- pale foam color with edge fading
 - alpha driven by wake strength and age
 - depth testing enabled
+- culling disabled while drawing two-sided wake strips
 - blending enabled
 - depth writes disabled during the wake pass
 - render state restored afterward
@@ -96,8 +101,8 @@ Phase 13 tests cover:
 - deterministic geometry
 - radius/count-bounded nearest-vessel selection
 - deterministic selection ties
-- renderer use of tracker snapshots, wake geometry, procedural ocean height, camera-relative coordinates, and safe depth writes
+- renderer use of tracker snapshots, wake geometry, procedural-ocean fallback, camera-relative coordinates, and safe depth writes
 
 ## Remaining validation
 
-CI verifies Java compilation, unit/contract tests, JAR generation, and artifact upload. A later in-game graphics/stress pass should visually tune foam width, opacity, Small Ships hull scaling, and many-vessel scenes. Spray particles remain Phase 15 and shoreline breaking remains Phase 14.
+CI verifies Java compilation, unit/contract tests, shader resources in the JAR, JAR generation, and artifact upload. CI does not create a real Minecraft OpenGL context, so a later in-game graphics/stress pass should visually tune foam width, opacity, Small Ships hull scaling, GPU shader appearance, and many-vessel scenes. Spray particles remain Phase 15 and shoreline breaking remains Phase 14.
