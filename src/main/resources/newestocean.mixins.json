@@ -2,10 +2,10 @@
   "required": true,
   "package": "com.redslovesgames.newestocean.mixin",
   "compatibilityLevel": "JAVA_21",
+  "plugin": "com.redslovesgames.newestocean.mixin.NewestOceanMixinPlugin",
   "mixins": [
     "BoatEntityMixin"
   ],
-  "injectors": {
-    "defaultRequire": 1
-  }
+  "injectors": { "defaultRequire": 1 },
+  "overwrites": { "requireAnnotations": true }
 }
