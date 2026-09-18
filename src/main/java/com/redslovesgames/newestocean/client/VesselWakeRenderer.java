@@ -51,10 +51,12 @@ public final class VesselWakeRenderer {
         List<VesselWakeTracker.Trail> trails = VesselWakeTracker.snapshot(camera, quality, frame.timeSeconds());
         if (trails.isEmpty()) return;
 
+        int requestedWaves = config.effectiveVisualWaveComponents(frame.plan().visualWaveComponents());
+        int visualWaveComponents = compatibility.visualWaveComponents(requestedWaves);
         if (compatibility.allowCustomShaders() && VesselWakeShader.available()) {
-            drawGpu(camera, frame, trails, config.wakeIntensity());
+            drawGpu(camera, frame, trails, config.wakeIntensity(), visualWaveComponents);
         } else {
-            drawCpu(context, camera, frame, trails, compatibility, config.wakeIntensity());
+            drawCpu(context, camera, frame, trails, compatibility, config.wakeIntensity(), visualWaveComponents);
         }
     }
 
@@ -62,7 +64,8 @@ public final class VesselWakeRenderer {
         Vec3d camera,
         OceanRenderFrame.Frame frame,
         List<VesselWakeTracker.Trail> trails,
-        double wakeIntensity
+        double wakeIntensity,
+        int visualWaveComponents
     ) {
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
         boolean emitted = emitSegments(trails, (newer, older, segment) -> {
@@ -76,7 +79,7 @@ public final class VesselWakeRenderer {
 
         VesselWakeShader.apply(
             NewestOcean.clientOcean(),
-            frame.plan().visualWaveComponents(),
+            visualWaveComponents,
             frame.timeSeconds(),
             frame.conditions(),
             camera.x,
@@ -92,12 +95,12 @@ public final class VesselWakeRenderer {
         OceanRenderFrame.Frame frame,
         List<VesselWakeTracker.Trail> trails,
         ShaderCompatibility.Snapshot compatibility,
-        double wakeIntensity
+        double wakeIntensity,
+        int visualWaveComponents
     ) {
         MatrixStack matrices = context.matrixStack();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-        int visualWaveComponents = compatibility.visualWaveComponents(frame.plan().visualWaveComponents());
         double strengthMultiplier = compatibility.wakeMultiplier() * wakeIntensity;
         boolean emitted = emitSegments(trails, (newer, older, segment) -> {
             emitCpuStrip(builder, matrix, camera, frame, segment.leftArm(), newer.strength(), older.strength(), false,
