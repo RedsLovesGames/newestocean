@@ -18,6 +18,8 @@
     {"name":"OceanWaveCount","type":"float","count":1,"values":[6]},
     {"name":"OceanFoamQuality","type":"float","count":1,"values":[0.75]},
     {"name":"OceanStormStrength","type":"float","count":1,"values":[0]},
+    {"name":"OceanWhitecapIntensity","type":"float","count":1,"values":[1]},
+    {"name":"OceanOpacity","type":"float","count":1,"values":[1]},
     {"name":"OceanWaveA0","type":"float","count":4,"values":[0,0,0,0]},
     {"name":"OceanWaveB0","type":"float","count":4,"values":[0,0,0,0]},
     {"name":"OceanWaveA1","type":"float","count":4,"values":[0,0,0,0]},
