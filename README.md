@@ -206,9 +206,27 @@ Phase 16 centralizes shaderpack compatibility while preserving the normal high-p
 - A shared render-state helper restores blend, depth-write, and culling state after Newest Ocean passes.
 - Server physics, networking, six-component physical waves, LOD radius, and shoreline cache authority are unchanged.
 
-The supplied `DEPTHS_ULTRA.zip` receives a dedicated profile because it already owns a heavy water pipeline with water vertex waving, reflections, foam, caustics, Distant Horizons water, colored lighting, and custom shadow handling. With DEPTHS_ULTRA active, Newest Ocean preserves its LOD/range but caps CPU visual wave evaluation to four components, uses 0.58 ocean base alpha, and scales CPU whitecaps/wakes/shoreline overlays by 0.65 / 0.90 / 0.90 respectively. Physics remains all six components.
+The supplied `DEPTHS_ULTRA.zip` receives a dedicated profile because it already owns a heavy water pipeline with water vertex waving, reflections, foam, caustics, Distant Horizons water, colored lighting, and custom shadow handling. With DEPTHS_ULTRA active, Newest Ocean preserves its LOD/range but defaults to four CPU visual wave components, 0.58 ocean base alpha, and CPU whitecap/wake/shoreline multipliers of 0.65 / 0.90 / 0.90. Physics remains all six components.
 
 See `docs/PHASE_16_SHADER_COMPATIBILITY.md` for the compatibility modes and runtime details.
+
+## Phase 17: runtime tuning and Mod Menu configuration
+
+Phase 17 exposes Newest Ocean's client rendering and performance controls through a persistent Cloth Config screen, with optional Mod Menu integration:
+
+- Client settings persist in `config/newestocean-client.json`.
+- Cloth Config 15.0.140 provides the configuration UI.
+- Mod Menu 11.0.3 integration exposes the screen from the normal Mods menu when Mod Menu is installed.
+- Settings are sanitized before use and saving applies them live without restarting Minecraft.
+- Quality preset, adaptive quality, target FPS, adaptive minimum/maximum tiers, visual wave count, render-distance scale, and ocean opacity are configurable.
+- Whitecaps, vessel wakes, and shoreline effects each have enable and intensity controls.
+- Newest Ocean custom shaders can be disabled independently while Phase 16 still decides whether a custom shader path is safe.
+- DEPTHS_ULTRA's visual wave cap, ocean alpha, whitecap multiplier, wake multiplier, and shoreline multiplier are configurable while preserving Phase 16 defaults.
+- A diagnostics overlay reports FPS/target FPS, effective quality, shader compatibility mode, effective visual wave count, and render-distance scale.
+- Config changes reset visual caches and rebuild adaptive-quality state where needed.
+- Client configuration is isolated from authoritative server physics, networking, ocean seed ownership, buoyancy, collision, and the six-component physical wave field.
+
+See `docs/PHASE_17_RUNTIME_TUNING.md` for the full setting ranges, defaults, live-application behavior, and validation checklist.
 
 ## Optional Phase 15: spray and impacts
 
@@ -233,6 +251,7 @@ The `feature/ocean-core` branch currently contains:
 - Phase 13 bounded client-only, GPU-conformed vessel wakes with CPU fallback.
 - Phase 14 bounded terrain-aware shoreline analysis, directional GPU breakers, shoaling, foam/wash, and CPU fallback.
 - Phase 16 automatic Iris compatibility with a DEPTHS_ULTRA-optimized CPU fallback profile.
+- Phase 17 persistent runtime tuning, Cloth Config UI, optional Mod Menu integration, and diagnostics.
 - Phase 15 spray/impact particles deferred as optional visual polish.
 - Vanilla boat wave-force correction.
 - Optional Small Ships tracking and size-scaled physics integration.
@@ -249,6 +268,7 @@ Deterministic ocean state
   -> currents
       -> authoritative server ocean (always 6 physical waves)
       -> synchronized client reconstruction
+          -> persistent client rendering config
           -> cached concentric LOD topology
           -> cached water coverage
           -> cached bounded shoreline field
@@ -265,8 +285,8 @@ Deterministic ocean state
                   -> CPU wake conformity fallback
               -> DEPTHS_ULTRA
                   -> same Iris-safe fallback
-                  -> max 4 visual CPU wave components
-                  -> lighter alpha/foam overlay tuning
+                  -> configurable visual CPU wave cap
+                  -> configurable alpha/foam/wake/shoreline tuning
 
 Vessel physics
   -> shared hull profiles
@@ -281,14 +301,15 @@ Vessel physics
 Renderer
   -> camera-centered LOD mesh
   -> water-only coverage indices
-  -> adaptive quality
+  -> adaptive quality with configurable FPS target and tier bounds
   -> centralized Iris/DEPTHS compatibility routing
   -> ocean surface
   -> foam / whitecaps
   -> shoreline breakers / shoaling / foam wash
   -> vessel wakes
   -> shared render-state restoration
+  -> optional diagnostics overlay
   -> optional spray / impacts (deferred)
 ```
 
-Physics and graphics remain separate. Reducing ocean graphics quality or entering shaderpack compatibility mode must never change authoritative vessel motion.
+Physics and graphics remain separate. Reducing ocean graphics quality, changing Mod Menu settings, or entering shaderpack compatibility mode must never change authoritative vessel motion.
