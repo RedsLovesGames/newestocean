@@ -21,6 +21,6 @@ class ShorelineRendererContractTest {
         assertTrue(renderer.contains("NewestOcean.clientOcean().sample"));
         assertTrue(renderer.contains("frame.plan().visualWaveComponents()"));
         assertTrue(renderer.contains("OceanRenderCoordinates.relative"));
-        assertTrue(renderer.contains("RenderSystem.depthMask(false)"));
+        assertTrue(renderer.contains("OceanRenderState.drawTwoSided"));
     }
 }
