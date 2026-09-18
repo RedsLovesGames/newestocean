@@ -7,7 +7,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexConsumer;
@@ -235,16 +234,7 @@ public final class OceanWorldRenderer {
             camera.y,
             camera.z
         );
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(false);
-        try {
-            BufferRenderer.drawWithGlobalProgram(builder.end());
-        } finally {
-            RenderSystem.depthMask(true);
-            RenderSystem.disableBlend();
-        }
+        OceanRenderState.drawSurface(builder);
     }
 
     private static void emitStatic(
@@ -320,16 +310,7 @@ public final class OceanWorldRenderer {
         }
 
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(false);
-        try {
-            BufferRenderer.drawWithGlobalProgram(builder.end());
-        } finally {
-            RenderSystem.depthMask(true);
-            RenderSystem.disableBlend();
-        }
+        OceanRenderState.drawSurface(builder);
     }
 
     private static void emitCpu(
