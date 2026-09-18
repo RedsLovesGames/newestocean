@@ -5,7 +5,6 @@ import com.redslovesgames.newestocean.NewestOcean;
 import com.redslovesgames.newestocean.ocean.OceanSurface;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexConsumer;
@@ -79,7 +78,7 @@ public final class VesselWakeRenderer {
             camera.y,
             camera.z
         );
-        drawPrepared(builder);
+        OceanRenderState.drawTwoSided(builder);
     }
 
     private static void drawCpu(
@@ -110,22 +109,7 @@ public final class VesselWakeRenderer {
         }
 
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-        drawPrepared(builder);
-    }
-
-    private static void drawPrepared(BufferBuilder builder) {
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.enableDepthTest();
-        RenderSystem.disableCull();
-        RenderSystem.depthMask(false);
-        try {
-            BufferRenderer.drawWithGlobalProgram(builder.end());
-        } finally {
-            RenderSystem.depthMask(true);
-            RenderSystem.enableCull();
-            RenderSystem.disableBlend();
-        }
+        OceanRenderState.drawTwoSided(builder);
     }
 
     private static boolean emitSegments(List<VesselWakeTracker.Trail> trails, SegmentConsumer consumer) {
