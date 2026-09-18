@@ -2,7 +2,6 @@ package com.redslovesgames.newestocean.client.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonParseException;
 
 /** Pure JSON codec for the client-only ocean settings. */
 public final class OceanClientConfigCodec {
@@ -25,7 +24,7 @@ public final class OceanClientConfigCodec {
         try {
             OceanClientConfig decoded = GSON.fromJson(json, OceanClientConfig.class);
             return decoded == null ? OceanClientConfig.defaults() : decoded.sanitize();
-        } catch (JsonParseException | RuntimeException error) {
+        } catch (RuntimeException error) {
             return OceanClientConfig.defaults();
         }
     }
