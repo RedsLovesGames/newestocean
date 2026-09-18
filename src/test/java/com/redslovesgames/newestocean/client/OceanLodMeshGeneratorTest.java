@@ -2,6 +2,7 @@ package com.redslovesgames.newestocean.client;
 
 import com.redslovesgames.newestocean.math.Vec3;
 import com.redslovesgames.newestocean.ocean.OceanConditions;
+import com.redslovesgames.newestocean.ocean.OceanSurface;
 import com.redslovesgames.newestocean.ocean.ProceduralOcean;
 import org.junit.jupiter.api.Test;
 
@@ -67,5 +68,43 @@ class OceanLodMeshGeneratorTest {
             assertEquals(63.25, vertex.y());
             assertEquals(Vec3.UP, vertex.normal());
         }
+    }
+
+    @Test
+    void explicitVisualWaveLimitControlsCpuCompatibilityMesh() {
+        ProceduralOcean ocean = ProceduralOcean.createDefault(123456L);
+        OceanLodPlanner.Plan plan = OceanLodPlanner.plan(OceanQuality.HIGH, 0.0, 0.0);
+        OceanLodTopology topology = OceanLodTopology.build(plan);
+        OceanLodCoverageMask mask = OceanLodCoverageMask.build(plan, topology, (x, z) -> true);
+        double time = 19.75;
+
+        OceanLodMeshGenerator.Mesh limited = OceanLodMeshGenerator.generate(
+            ocean, plan, topology, mask, time, OceanConditions.CALM, 4
+        );
+        OceanLodMeshGenerator.Mesh full = OceanLodMeshGenerator.generate(
+            ocean, plan, topology, mask, time, OceanConditions.CALM
+        );
+
+        OceanLodTopology.LocalVertex local = topology.vertices()[0];
+        double baseX = plan.originX() + local.x();
+        double baseZ = plan.originZ() + local.z();
+        OceanSurface.SurfaceSample expected = ocean.sample(baseX, baseZ, time, OceanConditions.CALM, 4);
+        OceanLodMeshGenerator.Vertex actual = limited.vertices()[0];
+
+        assertEquals(baseX + expected.horizontalDisplacement().x(), actual.x(), 1.0e-9);
+        assertEquals(expected.height(), actual.y(), 1.0e-9);
+        assertEquals(baseZ + expected.horizontalDisplacement().z(), actual.z(), 1.0e-9);
+        assertEquals(expected.normal().x(), actual.normal().x(), 1.0e-9);
+        assertEquals(expected.normal().y(), actual.normal().y(), 1.0e-9);
+        assertEquals(expected.normal().z(), actual.normal().z(), 1.0e-9);
+
+        boolean differsFromSixWaves = false;
+        for (int i = 0; i < limited.vertices().length; i++) {
+            if (Math.abs(limited.vertices()[i].y() - full.vertices()[i].y()) > 1.0e-9) {
+                differsFromSixWaves = true;
+                break;
+            }
+        }
+        assertTrue(differsFromSixWaves);
     }
 }
