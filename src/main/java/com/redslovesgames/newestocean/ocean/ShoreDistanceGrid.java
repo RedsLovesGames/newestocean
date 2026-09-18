@@ -1,6 +1,7 @@
 package com.redslovesgames.newestocean.ocean;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -10,7 +11,7 @@ import java.util.List;
  */
 public final class ShoreDistanceGrid implements ShoreDistanceProvider {
     private static final double MAX_DISTANCE = ShoreAttenuation.FULL_STRENGTH_DISTANCE;
-    private static final Offset[] SEARCH_OFFSETS = buildSearchOffsets();
+    private static final Offset[] PROPAGATION_OFFSETS = buildPropagationOffsets();
 
     private final int originX;
     private final int originZ;
@@ -26,16 +27,12 @@ public final class ShoreDistanceGrid implements ShoreDistanceProvider {
         this.distances = distances;
     }
 
-    /**
-     * Builds a zero-origin grid. {@code landMask[z][x] == true} marks land.
-     */
+    /** Builds a zero-origin grid. {@code landMask[z][x] == true} marks land. */
     public static ShoreDistanceGrid fromLandMask(boolean[][] landMask) {
         return fromLandMask(0, 0, landMask);
     }
 
-    /**
-     * Builds a world-aligned grid. {@code landMask[z][x] == true} marks land.
-     */
+    /** Builds a world-aligned grid. {@code landMask[z][x] == true} marks land. */
     public static ShoreDistanceGrid fromLandMask(int originX, int originZ, boolean[][] landMask) {
         if (landMask == null || landMask.length == 0 || landMask[0] == null || landMask[0].length == 0) {
             throw new IllegalArgumentException("land mask must be non-empty");
@@ -49,29 +46,33 @@ public final class ShoreDistanceGrid implements ShoreDistanceProvider {
         }
 
         double[] distances = new double[width * height];
-        for (int z = 0; z < height; z++) {
-            for (int x = 0; x < width; x++) {
-                distances[z * width + x] = nearestDistance(landMask, width, height, x, z);
+        Arrays.fill(distances, MAX_DISTANCE);
+
+        // Source-driven bounded distance transform: each land source propagates its exact
+        // Euclidean offset into nearby cells once. Water cells never perform their own radial scan.
+        for (int sourceZ = 0; sourceZ < height; sourceZ++) {
+            for (int sourceX = 0; sourceX < width; sourceX++) {
+                if (!landMask[sourceZ][sourceX]) {
+                    continue;
+                }
+                for (Offset offset : PROPAGATION_OFFSETS) {
+                    int targetX = sourceX + offset.dx();
+                    int targetZ = sourceZ + offset.dz();
+                    if (targetX < 0 || targetX >= width || targetZ < 0 || targetZ >= height) {
+                        continue;
+                    }
+                    int index = targetZ * width + targetX;
+                    if (offset.distance() < distances[index]) {
+                        distances[index] = offset.distance();
+                    }
+                }
             }
         }
+
         return new ShoreDistanceGrid(originX, originZ, width, height, distances);
     }
 
-    private static double nearestDistance(boolean[][] landMask, int width, int height, int x, int z) {
-        for (Offset offset : SEARCH_OFFSETS) {
-            int landX = x + offset.dx();
-            int landZ = z + offset.dz();
-            if (landX < 0 || landX >= width || landZ < 0 || landZ >= height) {
-                continue;
-            }
-            if (landMask[landZ][landX]) {
-                return offset.distance();
-            }
-        }
-        return MAX_DISTANCE;
-    }
-
-    private static Offset[] buildSearchOffsets() {
+    private static Offset[] buildPropagationOffsets() {
         int radius = (int) Math.ceil(MAX_DISTANCE);
         List<Offset> offsets = new ArrayList<>();
         for (int dz = -radius; dz <= radius; dz++) {
