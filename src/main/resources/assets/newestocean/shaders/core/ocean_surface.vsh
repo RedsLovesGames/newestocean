@@ -38,6 +38,8 @@ void accumulateWave(
     inout float height,
     inout vec2 displacement,
     inout vec2 slope,
+    inout vec3 tangentX,
+    inout vec3 tangentZ,
     inout float crestCurvature
 ) {
     vec2 direction = a.xy;
@@ -50,10 +52,20 @@ void accumulateWave(
     float theta = waveNumber * dot(direction, worldXZ) - angularFrequency * OceanTime + phase;
     float s = sin(theta);
     float c = cos(theta);
+    float steepnessAmplitude = steepness * amplitude;
+    float horizontalDerivative = steepnessAmplitude * waveNumber * s;
 
     height += amplitude * s;
     slope += amplitude * waveNumber * direction * c;
-    displacement += steepness * amplitude * c * direction;
+    displacement += steepnessAmplitude * c * direction;
+
+    tangentX.x -= horizontalDerivative * direction.x * direction.x;
+    tangentX.y += amplitude * waveNumber * direction.x * c;
+    tangentX.z -= horizontalDerivative * direction.x * direction.y;
+    tangentZ.x -= horizontalDerivative * direction.x * direction.y;
+    tangentZ.y += amplitude * waveNumber * direction.y * c;
+    tangentZ.z -= horizontalDerivative * direction.y * direction.y;
+
     crestCurvature += amplitude * waveNumber * waveNumber * max(s, 0.0);
 }
 
@@ -62,16 +74,19 @@ void main() {
     float height = OceanWaterHeight;
     vec2 displacement = vec2(0.0);
     vec2 slope = vec2(0.0);
+    vec3 tangentX = vec3(1.0, 0.0, 0.0);
+    vec3 tangentZ = vec3(0.0, 0.0, 1.0);
     float crestCurvature = 0.0;
 
-    if (OceanWaveCount > 0.5) accumulateWave(OceanWaveA0, OceanWaveB0, worldXZ, height, displacement, slope, crestCurvature);
-    if (OceanWaveCount > 1.5) accumulateWave(OceanWaveA1, OceanWaveB1, worldXZ, height, displacement, slope, crestCurvature);
-    if (OceanWaveCount > 2.5) accumulateWave(OceanWaveA2, OceanWaveB2, worldXZ, height, displacement, slope, crestCurvature);
-    if (OceanWaveCount > 3.5) accumulateWave(OceanWaveA3, OceanWaveB3, worldXZ, height, displacement, slope, crestCurvature);
-    if (OceanWaveCount > 4.5) accumulateWave(OceanWaveA4, OceanWaveB4, worldXZ, height, displacement, slope, crestCurvature);
-    if (OceanWaveCount > 5.5) accumulateWave(OceanWaveA5, OceanWaveB5, worldXZ, height, displacement, slope, crestCurvature);
+    if (OceanWaveCount > 0.5) accumulateWave(OceanWaveA0, OceanWaveB0, worldXZ, height, displacement, slope, tangentX, tangentZ, crestCurvature);
+    if (OceanWaveCount > 1.5) accumulateWave(OceanWaveA1, OceanWaveB1, worldXZ, height, displacement, slope, tangentX, tangentZ, crestCurvature);
+    if (OceanWaveCount > 2.5) accumulateWave(OceanWaveA2, OceanWaveB2, worldXZ, height, displacement, slope, tangentX, tangentZ, crestCurvature);
+    if (OceanWaveCount > 3.5) accumulateWave(OceanWaveA3, OceanWaveB3, worldXZ, height, displacement, slope, tangentX, tangentZ, crestCurvature);
+    if (OceanWaveCount > 4.5) accumulateWave(OceanWaveA4, OceanWaveB4, worldXZ, height, displacement, slope, tangentX, tangentZ, crestCurvature);
+    if (OceanWaveCount > 5.5) accumulateWave(OceanWaveA5, OceanWaveB5, worldXZ, height, displacement, slope, tangentX, tangentZ, crestCurvature);
 
-    vec3 normal = normalize(vec3(-slope.x, 1.0, -slope.y));
+    vec3 normal = normalize(cross(tangentZ, tangentX));
+    if (normal.y < 0.0) normal = -normal;
     oceanLight = clamp(0.72 + normal.y * 0.20, 0.68, 0.94);
 
     float slopeFoam = smoothstep(0.24, 0.78, length(slope));
