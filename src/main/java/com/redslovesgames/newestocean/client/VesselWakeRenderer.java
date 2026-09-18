@@ -2,6 +2,8 @@ package com.redslovesgames.newestocean.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.redslovesgames.newestocean.NewestOcean;
+import com.redslovesgames.newestocean.client.config.OceanClientConfig;
+import com.redslovesgames.newestocean.client.config.OceanConfigManager;
 import com.redslovesgames.newestocean.ocean.OceanSurface;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.minecraft.client.render.BufferBuilder;
@@ -30,44 +32,47 @@ public final class VesselWakeRenderer {
         OceanQuality quality,
         ShaderCompatibility.Snapshot compatibility
     ) {
+        render(context, camera, frame, quality, compatibility, OceanConfigManager.current());
+    }
+
+    public static void render(
+        WorldRenderContext context,
+        Vec3d camera,
+        OceanRenderFrame.Frame frame,
+        OceanQuality quality,
+        ShaderCompatibility.Snapshot compatibility,
+        OceanClientConfig config
+    ) {
         if (context == null || camera == null || frame == null || quality == null || compatibility == null
-            || context.matrixStack() == null) {
+            || config == null || context.matrixStack() == null || !config.wakesEnabled()) {
             return;
         }
 
-        List<VesselWakeTracker.Trail> trails = VesselWakeTracker.snapshot(
-            camera,
-            quality,
-            frame.timeSeconds()
-        );
-        if (trails.isEmpty()) {
-            return;
-        }
+        List<VesselWakeTracker.Trail> trails = VesselWakeTracker.snapshot(camera, quality, frame.timeSeconds());
+        if (trails.isEmpty()) return;
 
         if (compatibility.allowCustomShaders() && VesselWakeShader.available()) {
-            drawGpu(camera, frame, trails);
+            drawGpu(camera, frame, trails, config.wakeIntensity());
         } else {
-            drawCpu(context, camera, frame, trails, compatibility);
+            drawCpu(context, camera, frame, trails, compatibility, config.wakeIntensity());
         }
     }
 
     private static void drawGpu(
         Vec3d camera,
         OceanRenderFrame.Frame frame,
-        List<VesselWakeTracker.Trail> trails
+        List<VesselWakeTracker.Trail> trails,
+        double wakeIntensity
     ) {
-        BufferBuilder builder = Tessellator.getInstance().begin(
-            VertexFormat.DrawMode.QUADS,
-            VertexFormats.POSITION_COLOR
-        );
+        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
         boolean emitted = emitSegments(trails, (newer, older, segment) -> {
-            emitGpuStrip(builder, camera, segment.leftArm(), newer.strength(), older.strength(), false);
-            emitGpuStrip(builder, camera, segment.rightArm(), newer.strength(), older.strength(), false);
-            emitGpuStrip(builder, camera, segment.center(), newer.strength(), older.strength(), true);
+            double newerStrength = newer.strength() * wakeIntensity;
+            double olderStrength = older.strength() * wakeIntensity;
+            emitGpuStrip(builder, camera, segment.leftArm(), newerStrength, olderStrength, false);
+            emitGpuStrip(builder, camera, segment.rightArm(), newerStrength, olderStrength, false);
+            emitGpuStrip(builder, camera, segment.center(), newerStrength, olderStrength, true);
         });
-        if (!emitted) {
-            return;
-        }
+        if (!emitted) return;
 
         VesselWakeShader.apply(
             NewestOcean.clientOcean(),
@@ -86,16 +91,14 @@ public final class VesselWakeRenderer {
         Vec3d camera,
         OceanRenderFrame.Frame frame,
         List<VesselWakeTracker.Trail> trails,
-        ShaderCompatibility.Snapshot compatibility
+        ShaderCompatibility.Snapshot compatibility,
+        double wakeIntensity
     ) {
         MatrixStack matrices = context.matrixStack();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
-        BufferBuilder builder = Tessellator.getInstance().begin(
-            VertexFormat.DrawMode.QUADS,
-            VertexFormats.POSITION_COLOR
-        );
+        BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
         int visualWaveComponents = compatibility.visualWaveComponents(frame.plan().visualWaveComponents());
-        double strengthMultiplier = compatibility.wakeMultiplier();
+        double strengthMultiplier = compatibility.wakeMultiplier() * wakeIntensity;
         boolean emitted = emitSegments(trails, (newer, older, segment) -> {
             emitCpuStrip(builder, matrix, camera, frame, segment.leftArm(), newer.strength(), older.strength(), false,
                 visualWaveComponents, strengthMultiplier);
@@ -104,9 +107,7 @@ public final class VesselWakeRenderer {
             emitCpuStrip(builder, matrix, camera, frame, segment.center(), newer.strength(), older.strength(), true,
                 visualWaveComponents, strengthMultiplier);
         });
-        if (!emitted) {
-            return;
-        }
+        if (!emitted) return;
 
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
         OceanRenderState.drawTwoSided(builder);
@@ -119,9 +120,7 @@ public final class VesselWakeRenderer {
             for (int i = 1; i < samples.size(); i++) {
                 VesselWakeDescriptor older = samples.get(i - 1);
                 VesselWakeDescriptor newer = samples.get(i);
-                if (newer.strength() <= 0.0 && older.strength() <= 0.0) {
-                    continue;
-                }
+                if (newer.strength() <= 0.0 && older.strength() <= 0.0) continue;
                 consumer.accept(newer, older, VesselWakeGeometry.segment(newer, older));
                 emitted = true;
             }
@@ -140,7 +139,6 @@ public final class VesselWakeRenderer {
         float centerFlag = center ? 1.0F : 0.0F;
         float innerEdge = center ? 0.88F : 1.0F;
         float outerEdge = center ? 0.88F : 0.05F;
-
         emitGpu(consumer, camera, strip.newerInner(), newerStrength, innerEdge, centerFlag);
         emitGpu(consumer, camera, strip.newerOuter(), newerStrength, outerEdge, centerFlag);
         emitGpu(consumer, camera, strip.olderOuter(), olderStrength, outerEdge, centerFlag);
@@ -156,12 +154,7 @@ public final class VesselWakeRenderer {
         float center
     ) {
         OceanRenderCoordinates.Relative relative = OceanRenderCoordinates.relative(
-            point.x(),
-            camera.y + SURFACE_LIFT,
-            point.z(),
-            camera.x,
-            camera.y,
-            camera.z
+            point.x(), camera.y + SURFACE_LIFT, point.z(), camera.x, camera.y, camera.z
         );
         consumer.vertex((float) relative.x(), (float) relative.y(), (float) relative.z())
             .color((float) clamp01(strength), edge, center, 1.0F);
@@ -181,7 +174,6 @@ public final class VesselWakeRenderer {
     ) {
         float innerAlpha = center ? 0.78F : 0.88F;
         float outerAlpha = center ? 0.78F : 0.08F;
-
         emitCpu(consumer, matrix, camera, frame, strip.newerInner(), newerStrength, innerAlpha,
             visualWaveComponents, strengthMultiplier);
         emitCpu(consumer, matrix, camera, frame, strip.newerOuter(), newerStrength, outerAlpha,
@@ -204,22 +196,13 @@ public final class VesselWakeRenderer {
         double strengthMultiplier
     ) {
         OceanSurface.SurfaceSample sample = NewestOcean.clientOcean().sample(
-            point.x(),
-            point.z(),
-            frame.timeSeconds(),
-            frame.conditions(),
-            visualWaveComponents
+            point.x(), point.z(), frame.timeSeconds(), frame.conditions(), visualWaveComponents
         );
         double worldX = point.x() + sample.horizontalDisplacement().x();
         double worldY = sample.height() + SURFACE_LIFT;
         double worldZ = point.z() + sample.horizontalDisplacement().z();
         OceanRenderCoordinates.Relative relative = OceanRenderCoordinates.relative(
-            worldX,
-            worldY,
-            worldZ,
-            camera.x,
-            camera.y,
-            camera.z
+            worldX, worldY, worldZ, camera.x, camera.y, camera.z
         );
         float alpha = (float) (clamp01(strength * strengthMultiplier) * edgeAlpha);
         consumer.vertex(matrix, (float) relative.x(), (float) relative.y(), (float) relative.z())
