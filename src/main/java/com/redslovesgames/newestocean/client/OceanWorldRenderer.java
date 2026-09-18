@@ -20,7 +20,7 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
-/** Visible ocean renderer. GPU displacement is preferred; the Phase 8 CPU path remains a safe fallback. */
+/** Visible ocean renderer with cached coverage, shoreline effects, and GPU displacement when available. */
 public final class OceanWorldRenderer {
     private static final OceanLodTopology.Cache TOPOLOGY_CACHE = new OceanLodTopology.Cache();
     private static final int COVERAGE_REFRESH_TICKS = 100;
@@ -31,6 +31,7 @@ public final class OceanWorldRenderer {
     private static volatile OceanQuality quality = OceanQuality.MEDIUM;
     private static volatile boolean adaptiveQualityEnabled = true;
     private static OceanLodCoverageMask coverage;
+    private static ShorelineField shoreline;
     private static OceanQuality coverageQuality;
     private static double coverageOriginX = Double.NaN;
     private static double coverageOriginZ = Double.NaN;
@@ -72,6 +73,7 @@ public final class OceanWorldRenderer {
 
     private static void resetCoverage() {
         coverage = null;
+        shoreline = null;
         coverageQuality = null;
         coverageOriginX = Double.NaN;
         coverageOriginZ = Double.NaN;
@@ -141,6 +143,15 @@ public final class OceanWorldRenderer {
             drawCpu(context, camera, mesh, frame, rainGradient, thunderGradient);
         }
 
+        ShorelineRenderer.render(
+            context,
+            camera,
+            frame,
+            topology,
+            shoreline,
+            rainGradient,
+            thunderGradient
+        );
         VesselWakeRenderer.render(context, camera, frame, quality);
     }
 
@@ -165,6 +176,17 @@ public final class OceanWorldRenderer {
                 probePos.set(MathHelper.floor(x), waterY, MathHelper.floor(z));
                 return client.world.getFluidState(probePos).isIn(FluidTags.WATER);
             });
+            shoreline = ShorelineAnalyzer.build(
+                plan,
+                topology,
+                coverage,
+                client.world.getSeaLevel(),
+                plan.quality(),
+                (x, y, z) -> {
+                    probePos.set(x, y, z);
+                    return client.world.getFluidState(probePos).isIn(FluidTags.WATER);
+                }
+            );
             coverageQuality = plan.quality();
             coverageOriginX = plan.originX();
             coverageOriginZ = plan.originZ();
