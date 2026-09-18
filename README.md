@@ -177,6 +177,23 @@ Phase 13 adds bounded client-only wakes for vanilla boats and Small Ships:
 
 See `docs/PHASE_13_VESSEL_WAKES.md` for the detailed runtime limits.
 
+## Phase 14: shoreline waves
+
+Phase 14 adds bounded terrain-aware shoaling, directional breaking waves, and procedural shoreline foam without introducing an ocean-wide simulation:
+
+- Shoreline analysis is aligned to the existing water LOD cells rather than scanning chunks.
+- Wet cells probe downward for at most 12 blocks.
+- Deep-ocean cells skip the horizontal shore search entirely when they cannot contribute any shoreline influence.
+- Remaining cells search only within the active quality-tier radius: 4 / 6 / 8 / 10 / 12 blocks from Potato through Ultra.
+- Cached samples store depth, nearest-shore distance, normalized direction toward shore, and bounded influence.
+- The shoreline field rebuilds with the existing snapped-origin/quality/dimension/100-tick water-coverage lifecycle instead of probing terrain every frame.
+- The preferred `newestocean:shoreline_break` shader reuses the packed deterministic Gerstner waves to detect waves traveling toward land, apply small visual-only shoaling, and generate procedural breaker foam/wash.
+- A CPU fallback samples the synchronized procedural ocean when the custom shader is unavailable.
+- Shoreline visuals are rendered after the main ocean and before vessel wakes.
+- No shoreline packets, server shoreline state, or authoritative vessel-force changes are introduced.
+
+See `docs/PHASE_14_SHORELINE_WAVES.md` for the detailed runtime model and limits.
+
 ## Current implementation
 
 The `feature/ocean-core` branch currently contains:
@@ -194,6 +211,7 @@ The `feature/ocean-core` branch currently contains:
 - Phase 11 distance-based vessel physics LOD with full-rate safety exceptions.
 - Phase 12 procedural foam and whitecaps.
 - Phase 13 bounded client-only, GPU-conformed vessel wakes with CPU fallback.
+- Phase 14 bounded terrain-aware shoreline analysis, directional GPU breakers, shoaling, foam/wash, and CPU fallback.
 - Vanilla boat wave-force correction.
 - Optional Small Ships tracking and size-scaled physics integration.
 - Vessel pose sampling from the same ocean surface.
@@ -211,9 +229,11 @@ Deterministic ocean state
       -> synchronized client reconstruction
           -> cached concentric LOD topology
           -> cached water coverage
+          -> cached bounded shoreline field
           -> GPU wave-uniform payload
           -> GPU-displaced visible ocean
           -> procedural whitecaps
+          -> directional shoreline breakers / shoaling / foam
           -> bounded vessel wake histories
           -> GPU-conformed wake strips
           -> CPU fallback paths
@@ -234,8 +254,9 @@ Renderer
   -> GPU Gerstner displacement and normals
   -> adaptive quality
   -> foam / whitecaps
+  -> shoreline breakers / shoaling / foam wash
   -> vessel wakes
-  -> shoreline effects
+  -> spray / impacts (next)
 ```
 
 Physics and graphics remain separate. Reducing ocean graphics quality must never change authoritative vessel motion.
