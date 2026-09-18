@@ -57,6 +57,13 @@ public final class OceanLodCoverageMask {
         return filtered;
     }
 
+    boolean isWaterCell(int cell) {
+        if (cell < 0 || cell >= waterCells.length) {
+            throw new IndexOutOfBoundsException("coverage cell out of range");
+        }
+        return waterCells[cell];
+    }
+
     public int cellCount() {
         return waterCells.length;
     }
