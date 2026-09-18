@@ -1,5 +1,6 @@
 package com.redslovesgames.newestocean.client;
 
+import com.redslovesgames.newestocean.client.config.OceanClientConfig;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -81,5 +82,37 @@ class ShaderCompatibilityTest {
             new ShaderCompatibility.IrisState(true, true, false, true, null)
         );
         assertFalse(snapshot.skipWorldRender());
+    }
+
+    @Test
+    void userCanDisableCustomShadersWithoutDisablingOceanRendering() {
+        OceanClientConfig config = OceanClientConfig.defaults();
+        config.setCustomShadersEnabled(false);
+        ShaderCompatibility.Snapshot snapshot = ShaderCompatibility.snapshot(
+            new ShaderCompatibility.IrisState(false, true, false, false, null),
+            config
+        );
+        assertEquals(ShaderCompatibility.Mode.NORMAL_GPU, snapshot.mode());
+        assertFalse(snapshot.allowCustomShaders());
+        assertFalse(snapshot.skipWorldRender());
+    }
+
+    @Test
+    void depthsRuntimeTuningComesFromClientConfig() {
+        OceanClientConfig config = OceanClientConfig.defaults();
+        config.setDepthsVisualWaveCap(2);
+        config.setDepthsOceanAlpha(0.44);
+        config.setDepthsWhitecapMultiplier(0.30);
+        config.setDepthsWakeMultiplier(1.25);
+        config.setDepthsShorelineMultiplier(1.40);
+        ShaderCompatibility.Snapshot snapshot = ShaderCompatibility.snapshot(
+            new ShaderCompatibility.IrisState(true, true, true, false, "DEPTHS_ULTRA.zip"),
+            config
+        );
+        assertEquals(2, snapshot.visualWaveComponents(6));
+        assertEquals(0.44, snapshot.oceanBaseAlpha(), 1.0e-9);
+        assertEquals(0.30, snapshot.whitecapMultiplier(), 1.0e-9);
+        assertEquals(1.25, snapshot.wakeMultiplier(), 1.0e-9);
+        assertEquals(1.40, snapshot.shorelineMultiplier(), 1.0e-9);
     }
 }
