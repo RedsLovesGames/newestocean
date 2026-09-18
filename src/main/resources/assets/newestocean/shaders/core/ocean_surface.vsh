@@ -8,6 +8,8 @@ uniform float OceanTime;
 uniform float OceanWaveScale;
 uniform float OceanWaterHeight;
 uniform vec2 OceanCameraXZ;
+uniform vec2 OceanPlanOriginXZ;
+uniform float OceanRenderRadius;
 uniform float OceanWaveCount;
 uniform float OceanFoamQuality;
 uniform float OceanStormStrength;
@@ -27,6 +29,7 @@ uniform vec4 OceanWaveB5;
 
 out float oceanLight;
 out float oceanFoam;
+out float oceanEdgeFade;
 
 void accumulateWave(
     vec4 a,
@@ -83,6 +86,11 @@ void main() {
     float breakup = mix(0.82, 0.55 + 0.45 * breakupNoise, detail);
     float stormGain = 0.55 + 0.75 * OceanStormStrength;
     oceanFoam = clamp(formation * stormGain * OceanFoamQuality * breakup * OceanWhitecapIntensity, 0.0, 1.0);
+
+    float edgeDistance = max(abs(worldXZ.x - OceanPlanOriginXZ.x), abs(worldXZ.y - OceanPlanOriginXZ.y));
+    float fadeStart = OceanRenderRadius * 0.72;
+    float fadeT = clamp((edgeDistance - fadeStart) / max(0.001, OceanRenderRadius - fadeStart), 0.0, 1.0);
+    oceanEdgeFade = 1.0 - fadeT * fadeT * (3.0 - 2.0 * fadeT);
 
     vec3 displaced = vec3(Position.x + displacement.x, height, Position.z + displacement.y);
     gl_Position = ProjMat * ModelViewMat * vec4(displaced, 1.0);
