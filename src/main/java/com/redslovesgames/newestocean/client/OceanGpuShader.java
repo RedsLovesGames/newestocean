@@ -37,16 +37,14 @@ public final class OceanGpuShader {
         OceanQuality quality,
         double rainGradient,
         double thunderGradient,
+        double whitecapIntensity,
+        double opacity,
         double cameraX,
         double cameraY,
         double cameraZ
     ) {
-        if (program == null) {
-            throw new IllegalStateException("ocean shader has not loaded");
-        }
-        if (quality == null) {
-            throw new IllegalArgumentException("quality is required");
-        }
+        if (program == null) throw new IllegalStateException("ocean shader has not loaded");
+        if (quality == null) throw new IllegalArgumentException("quality is required");
 
         OceanGpuWaveData data = OceanGpuWaveData.from(ocean, visualWaveComponents);
         RenderSystem.setShader(() -> program);
@@ -58,6 +56,8 @@ public final class OceanGpuShader {
         set1("OceanWaveCount", data.activeWaveCount());
         set1("OceanFoamQuality", (float) OceanWhitecapModel.qualityScale(quality));
         set1("OceanStormStrength", (float) OceanWhitecapModel.stormStrength(rainGradient, thunderGradient));
+        set1("OceanWhitecapIntensity", (float) Math.max(0.0, whitecapIntensity));
+        set1("OceanOpacity", (float) Math.max(0.0, Math.min(1.0, opacity)));
 
         for (int i = 0; i < OceanGpuWaveData.MAX_WAVES; i++) {
             OceanGpuWaveData.PackedWave wave = data.wave(i);
@@ -68,22 +68,16 @@ public final class OceanGpuShader {
 
     private static void set1(String name, float value) {
         GlUniform uniform = program.getUniform(name);
-        if (uniform != null) {
-            uniform.set(value);
-        }
+        if (uniform != null) uniform.set(value);
     }
 
     private static void set2(String name, float x, float y) {
         GlUniform uniform = program.getUniform(name);
-        if (uniform != null) {
-            uniform.set(x, y);
-        }
+        if (uniform != null) uniform.set(x, y);
     }
 
     private static void set4(String name, float x, float y, float z, float w) {
         GlUniform uniform = program.getUniform(name);
-        if (uniform != null) {
-            uniform.set(x, y, z, w);
-        }
+        if (uniform != null) uniform.set(x, y, z, w);
     }
 }
