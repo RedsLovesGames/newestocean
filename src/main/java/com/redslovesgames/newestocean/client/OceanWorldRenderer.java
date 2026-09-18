@@ -150,7 +150,7 @@ public final class OceanWorldRenderer {
         int requestedVisualWaves = config.effectiveVisualWaveComponents(frame.plan().visualWaveComponents());
         int visualWaveComponents = compatibility.visualWaveComponents(requestedVisualWaves);
         if (compatibility.allowCustomShaders() && OceanGpuShader.available()) {
-            drawGpu(camera, frame, topology, waterIndices, rainGradient, thunderGradient,
+            drawGpu(context, camera, frame, topology, waterIndices, rainGradient, thunderGradient,
                 visualWaveComponents, config);
         } else {
             OceanLodMeshGenerator.Mesh mesh = OceanLodMeshGenerator.generate(
@@ -179,6 +179,7 @@ public final class OceanWorldRenderer {
         long worldTick = client.world.getTime();
         String dimension = client.world.getRegistryKey().getValue().toString();
         boolean moved = coverage == null
+            || coverage.cellCount() != topology.cellCount()
             || coverageQuality != plan.quality()
             || Double.compare(coverageOriginX, plan.originX()) != 0
             || Double.compare(coverageOriginZ, plan.originZ()) != 0
@@ -213,6 +214,7 @@ public final class OceanWorldRenderer {
     }
 
     private static void drawGpu(
+        WorldRenderContext context,
         Vec3d camera,
         OceanRenderFrame.Frame frame,
         OceanLodTopology topology,
@@ -240,6 +242,7 @@ public final class OceanWorldRenderer {
             frame.timeSeconds(),
             frame.conditions(),
             plan.quality(),
+            plan,
             rainGradient,
             thunderGradient,
             whitecapIntensity,
@@ -248,7 +251,8 @@ public final class OceanWorldRenderer {
             camera.y,
             camera.z
         );
-        OceanRenderState.drawSurface(builder);
+        Matrix4f cameraMatrix = context.matrixStack().peek().getPositionMatrix();
+        OceanRenderState.drawSurface(builder, cameraMatrix);
     }
 
     private static void emitStatic(VertexConsumer consumer, OceanLodTopology.LocalVertex vertex,
@@ -308,10 +312,10 @@ public final class OceanWorldRenderer {
             float alpha = (float) Math.min(1.0,
                 (compatibility.oceanBaseAlpha() + 0.16 * foam) * config.oceanOpacity());
 
-            emitCpu(builder, matrix, camera, topLeft, red, green, blue, alpha);
-            emitCpu(builder, matrix, camera, bottomLeft, red, green, blue, alpha);
-            emitCpu(builder, matrix, camera, bottomRight, red, green, blue, alpha);
-            emitCpu(builder, matrix, camera, topRight, red, green, blue, alpha);
+            emitCpu(builder, matrix, camera, topLeft, red, green, blue, alpha, frame.plan());
+            emitCpu(builder, matrix, camera, bottomLeft, red, green, blue, alpha, frame.plan());
+            emitCpu(builder, matrix, camera, bottomRight, red, green, blue, alpha, frame.plan());
+            emitCpu(builder, matrix, camera, topRight, red, green, blue, alpha, frame.plan());
         }
 
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
@@ -326,12 +330,18 @@ public final class OceanWorldRenderer {
         float red,
         float green,
         float blue,
-        float alpha
+        float alpha,
+        OceanLodPlanner.Plan plan
     ) {
         OceanRenderCoordinates.Relative relative = OceanRenderCoordinates.relative(
             vertex.x(), vertex.y(), vertex.z(), camera.x, camera.y, camera.z
         );
+        double edgeFade = OceanSurfaceEdgeFade.factor(
+            vertex.x() - plan.originX(),
+            vertex.z() - plan.originZ(),
+            OceanSurfaceEdgeFade.outerRadius(plan)
+        );
         consumer.vertex(matrix, (float) relative.x(), (float) relative.y(), (float) relative.z())
-            .color(red, green, blue, alpha);
+            .color(red, green, blue, (float) (alpha * edgeFade));
     }
 }
