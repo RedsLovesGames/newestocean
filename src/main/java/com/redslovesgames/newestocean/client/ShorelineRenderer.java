@@ -59,13 +59,14 @@ public final class ShorelineRenderer {
         }
 
         if (compatibility.allowCustomShaders() && ShorelineGpuShader.available()) {
-            drawGpu(camera, frame, topology, shoreline, rainGradient, thunderGradient, config);
+            drawGpu(context, camera, frame, topology, shoreline, rainGradient, thunderGradient, config);
         } else {
             drawCpu(context, camera, frame, topology, shoreline, rainGradient, thunderGradient, compatibility, config);
         }
     }
 
     private static void drawGpu(
+        WorldRenderContext context,
         Vec3d camera,
         OceanRenderFrame.Frame frame,
         OceanLodTopology topology,
@@ -94,7 +95,8 @@ public final class ShorelineRenderer {
             NewestOcean.clientOcean(), visualWaves, frame.timeSeconds(), frame.conditions(), frame.plan().quality(),
             rainGradient, thunderGradient, camera.x, camera.y, camera.z
         );
-        OceanRenderState.drawTwoSided(builder);
+        Matrix4f cameraMatrix = context.matrixStack().peek().getPositionMatrix();
+        OceanRenderState.drawTwoSided(builder, cameraMatrix);
     }
 
     private static void emitGpu(
