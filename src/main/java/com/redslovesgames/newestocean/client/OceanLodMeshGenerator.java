@@ -18,11 +18,34 @@ public final class OceanLodMeshGenerator {
         double timeSeconds,
         OceanConditions conditions
     ) {
+        return generate(
+            ocean,
+            plan,
+            topology,
+            coverage,
+            timeSeconds,
+            conditions,
+            plan == null ? 0 : plan.visualWaveComponents()
+        );
+    }
+
+    public static Mesh generate(
+        ProceduralOcean ocean,
+        OceanLodPlanner.Plan plan,
+        OceanLodTopology topology,
+        OceanLodCoverageMask coverage,
+        double timeSeconds,
+        OceanConditions conditions,
+        int visualWaveComponents
+    ) {
         if (ocean == null || plan == null || topology == null || coverage == null || conditions == null) {
             throw new IllegalArgumentException("ocean, plan, topology, coverage, and conditions are required");
         }
         if (!Double.isFinite(timeSeconds)) {
             throw new IllegalArgumentException("timeSeconds must be finite");
+        }
+        if (visualWaveComponents < 0) {
+            throw new IllegalArgumentException("visualWaveComponents cannot be negative");
         }
 
         OceanLodTopology.LocalVertex[] localVertices = topology.vertices();
@@ -36,7 +59,7 @@ public final class OceanLodMeshGenerator {
                 baseZ,
                 timeSeconds,
                 conditions,
-                plan.visualWaveComponents()
+                visualWaveComponents
             );
             Vec3 displacement = sample.horizontalDisplacement();
             vertices[i] = new Vertex(
