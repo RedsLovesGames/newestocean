@@ -11,6 +11,7 @@ uniform vec2 OceanCameraXZ;
 uniform float OceanWaveCount;
 uniform float OceanFoamQuality;
 uniform float OceanStormStrength;
+uniform float OceanWhitecapIntensity;
 uniform vec4 OceanWaveA0;
 uniform vec4 OceanWaveB0;
 uniform vec4 OceanWaveA1;
@@ -81,7 +82,7 @@ void main() {
     );
     float breakup = mix(0.82, 0.55 + 0.45 * breakupNoise, detail);
     float stormGain = 0.55 + 0.75 * OceanStormStrength;
-    oceanFoam = clamp(formation * stormGain * OceanFoamQuality * breakup, 0.0, 1.0);
+    oceanFoam = clamp(formation * stormGain * OceanFoamQuality * breakup * OceanWhitecapIntensity, 0.0, 1.0);
 
     vec3 displaced = vec3(Position.x + displacement.x, height, Position.z + displacement.y);
     gl_Position = ProjMat * ModelViewMat * vec4(displaced, 1.0);
