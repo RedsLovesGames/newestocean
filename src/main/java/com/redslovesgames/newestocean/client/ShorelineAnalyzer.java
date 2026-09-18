@@ -42,6 +42,13 @@ public final class ShorelineAnalyzer {
             int waterZ = (int) Math.floor(plan.originZ() + topology.cellCenterZ(cell));
             int depth = sampleDepth(probe, waterX, waterY, waterZ);
 
+            // Deep cells cannot produce visual shoreline influence even at zero shore distance.
+            // Skip the much more expensive horizontal search entirely for those cells.
+            if (ShorelineBreakModel.shoreInfluence(depth, 0.0, radius) <= 0.0) {
+                samples[cell] = ShorelineSample.NONE;
+                continue;
+            }
+
             int bestDx = 0;
             int bestDz = 0;
             int bestDistanceSquared = Integer.MAX_VALUE;
