@@ -35,6 +35,7 @@ public final class OceanGpuShader {
         double timeSeconds,
         OceanConditions conditions,
         OceanQuality quality,
+        OceanLodPlanner.Plan plan,
         double rainGradient,
         double thunderGradient,
         double whitecapIntensity,
@@ -44,7 +45,7 @@ public final class OceanGpuShader {
         double cameraZ
     ) {
         if (program == null) throw new IllegalStateException("ocean shader has not loaded");
-        if (quality == null) throw new IllegalArgumentException("quality is required");
+        if (quality == null || plan == null) throw new IllegalArgumentException("quality and plan are required");
 
         OceanGpuWaveData data = OceanGpuWaveData.from(ocean, visualWaveComponents);
         RenderSystem.setShader(() -> program);
@@ -53,6 +54,8 @@ public final class OceanGpuShader {
         set1("OceanWaveScale", (float) conditions.waveScale());
         set1("OceanWaterHeight", (float) (conditions.tideOffset() - cameraY));
         set2("OceanCameraXZ", (float) cameraX, (float) cameraZ);
+        set2("OceanPlanOriginXZ", (float) plan.originX(), (float) plan.originZ());
+        set1("OceanRenderRadius", OceanSurfaceEdgeFade.outerRadius(plan));
         set1("OceanWaveCount", data.activeWaveCount());
         set1("OceanFoamQuality", (float) OceanWhitecapModel.qualityScale(quality));
         set1("OceanStormStrength", (float) OceanWhitecapModel.stormStrength(rainGradient, thunderGradient));
