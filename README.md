@@ -148,6 +148,35 @@ Phase 9 removes per-visible-vertex wave evaluation from the preferred CPU render
 
 Phase 9 moves the expensive trigonometric wave animation and normal generation to the GPU without changing authoritative vessel physics or adding network traffic.
 
+## Phase 10: adaptive quality
+
+Phase 10 turns visual quality into a real time-based performance controller. Sustained frame misses reduce one visual tier after roughly three seconds, while upgrades require roughly ten seconds of stable headroom. Loading stalls are ignored and physics never changes with graphics quality.
+
+## Phase 11: physics LOD
+
+Phase 11 reduces expensive stable-vessel ocean solves by distance while retaining cheap per-tick bookkeeping and smooth cached-force interpolation. Player-controlled, launching, airborne, and re-contact vessels stay at full 20 Hz physics.
+
+## Phase 12: foam and whitecaps
+
+Phase 12 adds shader/math-driven crest foam from wave slope, positive crest curvature, storm strength, and visual quality. The effect requires no foam simulation grid, network traffic, or ocean-wide particle system, and the CPU fallback has an approximate matching path.
+
+## Phase 13: vessel wakes
+
+Phase 13 adds bounded client-only wakes for vanilla boats and Small Ships:
+
+- Client entity events track loaded `BoatEntity` instances without a world-wide scan.
+- Each vessel keeps at most 12 accepted wake samples for four seconds.
+- Stationary vessels below 0.12 blocks/tick do not generate new samples.
+- New points require at least 0.75 blocks of movement.
+- Quality tiers cap both tracked vessel count and tracking radius.
+- Each segment generates two V-shaped stern arms plus a centered turbulence strip.
+- Wake height follows the synchronized procedural ocean.
+- Wave height is sampled once per history point and reused across that point's wake vertices to keep CPU cost bounded.
+- The wake pass is blended, depth-tested, camera-relative, and visual-only.
+- No wake packets, server wake state, particles, or vessel-force changes are introduced.
+
+See `docs/PHASE_13_VESSEL_WAKES.md` for the detailed runtime limits.
+
 ## Current implementation
 
 The `feature/ocean-core` branch currently contains:
@@ -161,10 +190,13 @@ The `feature/ocean-core` branch currently contains:
 - Phase 7 cached concentric LOD ocean topology and water masking.
 - Phase 8 first visible synchronized ocean renderer and CPU fallback.
 - Phase 9 dedicated GPU Gerstner displacement and normal generation.
+- Phase 10 time-based adaptive visual quality.
+- Phase 11 distance-based vessel physics LOD with full-rate safety exceptions.
+- Phase 12 procedural foam and whitecaps.
+- Phase 13 bounded client-only, wave-following vessel wakes.
 - Vanilla boat wave-force correction.
 - Optional Small Ships tracking and size-scaled physics integration.
 - Vessel pose sampling from the same ocean surface.
-- Visual quality tiers and adaptive-quality controller foundations.
 - Java 21 / Fabric 1.21.1 CI.
 
 ## Planned architecture
@@ -181,6 +213,9 @@ Deterministic ocean state
           -> cached water coverage
           -> GPU wave-uniform payload
           -> GPU-displaced visible ocean
+          -> procedural whitecaps
+          -> bounded vessel wake histories
+          -> wave-following wake quads
           -> CPU fallback
 
 Vessel physics
@@ -191,13 +226,16 @@ Vessel physics
   -> launch / airborne glide / re-contact
   -> progressive re-entry / angular stability
   -> surfing / hull-specific planing
+  -> distance-based physics LOD
 
 Renderer
   -> camera-centered LOD mesh
   -> water-only coverage indices
   -> GPU Gerstner displacement and normals
   -> adaptive quality
-  -> foam / wakes / shoreline effects
+  -> foam / whitecaps
+  -> vessel wakes
+  -> shoreline effects
 ```
 
 Physics and graphics remain separate. Reducing ocean graphics quality must never change authoritative vessel motion.
