@@ -54,6 +54,6 @@ public final class NewestOcean implements ModInitializer {
         clientOcean = ProceduralOcean.createDefault(seed);
     }
 
-    private NewestOcean() {
+    public NewestOcean() {
     }
 }
