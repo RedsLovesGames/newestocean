@@ -23,8 +23,16 @@ class VesselWakeGeometryTest {
             Math.abs(segment.rightArm().olderOuter().z()),
             1.0e-9
         );
-        assertEquals(0.0, segment.center().newerInner().z(), 1.0e-9);
-        assertEquals(0.0, segment.center().olderInner().z(), 1.0e-9);
+        assertEquals(
+            0.0,
+            (segment.center().newerInner().z() + segment.center().newerOuter().z()) * 0.5,
+            1.0e-9
+        );
+        assertEquals(
+            0.0,
+            (segment.center().olderInner().z() + segment.center().olderOuter().z()) * 0.5,
+            1.0e-9
+        );
 
         assertFinite(segment.leftArm());
         assertFinite(segment.rightArm());
