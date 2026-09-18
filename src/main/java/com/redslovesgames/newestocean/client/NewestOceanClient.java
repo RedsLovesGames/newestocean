@@ -21,10 +21,12 @@ public final class NewestOceanClient implements ClientModInitializer {
                 OCEAN_SYNC.accept(payload.seed());
                 NewestOcean.setClientOceanSeed(payload.seed());
                 OceanWorldRenderer.reset();
+                VesselWakeTracker.reset();
             })
         );
 
         OceanGpuShader.register();
+        VesselWakeTracker.register();
         OceanWorldRenderer.register();
     }
 
@@ -40,5 +42,6 @@ public final class NewestOceanClient implements ClientModInitializer {
         OCEAN_SYNC.reset();
         NewestOcean.setClientOceanSeed(0L);
         OceanWorldRenderer.reset();
+        VesselWakeTracker.reset();
     }
 }
