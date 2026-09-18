@@ -8,7 +8,16 @@ public final class AdaptiveQualityFrameSampler {
     private long lastTimestampNanos = Long.MIN_VALUE;
 
     public AdaptiveQualityFrameSampler(OceanQuality initialQuality, double targetFrameMs) {
-        controller = new AdaptiveQualityController(initialQuality, targetFrameMs);
+        this(initialQuality, targetFrameMs, OceanQuality.POTATO, OceanQuality.ULTRA);
+    }
+
+    public AdaptiveQualityFrameSampler(
+        OceanQuality initialQuality,
+        double targetFrameMs,
+        OceanQuality minQuality,
+        OceanQuality maxQuality
+    ) {
+        controller = new AdaptiveQualityController(initialQuality, targetFrameMs, minQuality, maxQuality);
     }
 
     public Optional<OceanQuality> recordTimestampNanos(long timestampNanos) {
