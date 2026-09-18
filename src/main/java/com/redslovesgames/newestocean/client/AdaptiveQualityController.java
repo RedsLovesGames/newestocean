@@ -11,19 +11,35 @@ public final class AdaptiveQualityController {
     private static final double NEUTRAL_DRAIN_RATE = 2.0;
 
     private final double targetFrameMs;
+    private final OceanQuality minQuality;
+    private final OceanQuality maxQuality;
     private OceanQuality quality;
     private double slowTimeMs;
     private double fastTimeMs;
 
     public AdaptiveQualityController(OceanQuality initialQuality, double targetFrameMs) {
-        if (initialQuality == null) {
-            throw new IllegalArgumentException("initialQuality cannot be null");
+        this(initialQuality, targetFrameMs, OceanQuality.POTATO, OceanQuality.ULTRA);
+    }
+
+    public AdaptiveQualityController(
+        OceanQuality initialQuality,
+        double targetFrameMs,
+        OceanQuality minQuality,
+        OceanQuality maxQuality
+    ) {
+        if (initialQuality == null || minQuality == null || maxQuality == null) {
+            throw new IllegalArgumentException("quality values cannot be null");
         }
         if (!Double.isFinite(targetFrameMs) || targetFrameMs <= 0.0) {
             throw new IllegalArgumentException("targetFrameMs must be finite and positive");
         }
-        this.quality = initialQuality;
+        if (minQuality.ordinal() > maxQuality.ordinal()) {
+            throw new IllegalArgumentException("minimum quality cannot exceed maximum quality");
+        }
         this.targetFrameMs = targetFrameMs;
+        this.minQuality = minQuality;
+        this.maxQuality = maxQuality;
+        this.quality = clamp(initialQuality);
     }
 
     public void recordFrame(double frameMs) {
@@ -35,7 +51,7 @@ public final class AdaptiveQualityController {
             slowTimeMs += frameMs;
             fastTimeMs = 0.0;
             if (slowTimeMs > SLOW_TIME_TO_DOWNGRADE_MS) {
-                quality = quality.lower();
+                quality = clamp(quality.lower());
                 resetWindows();
             }
             return;
@@ -45,7 +61,7 @@ public final class AdaptiveQualityController {
             fastTimeMs += frameMs;
             slowTimeMs = 0.0;
             if (fastTimeMs >= FAST_TIME_TO_UPGRADE_MS) {
-                quality = quality.higher();
+                quality = clamp(quality.higher());
                 resetWindows();
             }
             return;
@@ -64,12 +80,18 @@ public final class AdaptiveQualityController {
         if (quality == null) {
             throw new IllegalArgumentException("quality cannot be null");
         }
-        this.quality = quality;
+        this.quality = clamp(quality);
         resetWindows();
     }
 
     public void resetSampling() {
         resetWindows();
+    }
+
+    private OceanQuality clamp(OceanQuality candidate) {
+        if (candidate.ordinal() < minQuality.ordinal()) return minQuality;
+        if (candidate.ordinal() > maxQuality.ordinal()) return maxQuality;
+        return candidate;
     }
 
     private void resetWindows() {
