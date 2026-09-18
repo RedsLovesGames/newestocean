@@ -51,6 +51,8 @@ Wake foam does not stay at a fixed sea-level Y coordinate.
 
 The preferred path uses the dedicated `newestocean:vessel_wake` core shader. The CPU submits sparse camera-relative wake strips plus strength/edge data, and the wake vertex shader applies the same packed Gerstner wave components used by the ocean renderer. This moves wake conformance to the GPU and avoids repeated CPU trigonometric sampling on the normal path.
 
+The fragment shader adds procedural foam breakup, soft wake edges, center-trail turbulence bias, and strength/age fading without textures or particle spam.
+
 If the wake shader is unavailable, a CPU fallback samples the synchronized procedural ocean and applies height plus horizontal Gerstner displacement before drawing. The fallback preserves visible wakes instead of making them disappear when the custom shader cannot load.
 
 ## Rendering
@@ -61,8 +63,9 @@ The pass uses:
 
 - sparse `POSITION_COLOR` wake quads
 - a dedicated GPU wake shader when available
+- the same packed Gerstner wave data used by the visible ocean
 - CPU procedural-ocean fallback
-- pale foam color with edge fading
+- pale foam color with procedural breakup and edge fading
 - alpha driven by wake strength and age
 - depth testing enabled
 - culling disabled while drawing two-sided wake strips
@@ -102,6 +105,8 @@ Phase 13 tests cover:
 - radius/count-bounded nearest-vessel selection
 - deterministic selection ties
 - renderer use of tracker snapshots, wake geometry, procedural-ocean fallback, camera-relative coordinates, and safe depth writes
+- wake shader registration and reuse of packed Gerstner wave uniforms
+- shader-side wave conformity, procedural breakup, edge fading, and wake-strength inputs
 
 ## Remaining validation
 
