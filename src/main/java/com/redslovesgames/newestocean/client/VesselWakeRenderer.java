@@ -28,9 +28,11 @@ public final class VesselWakeRenderer {
         WorldRenderContext context,
         Vec3d camera,
         OceanRenderFrame.Frame frame,
-        OceanQuality quality
+        OceanQuality quality,
+        ShaderCompatibility.Snapshot compatibility
     ) {
-        if (context == null || camera == null || frame == null || quality == null || context.matrixStack() == null) {
+        if (context == null || camera == null || frame == null || quality == null || compatibility == null
+            || context.matrixStack() == null) {
             return;
         }
 
@@ -43,10 +45,10 @@ public final class VesselWakeRenderer {
             return;
         }
 
-        if (VesselWakeShader.available()) {
+        if (compatibility.allowCustomShaders() && VesselWakeShader.available()) {
             drawGpu(camera, frame, trails);
         } else {
-            drawCpu(context, camera, frame, trails);
+            drawCpu(context, camera, frame, trails, compatibility);
         }
     }
 
@@ -84,7 +86,8 @@ public final class VesselWakeRenderer {
         WorldRenderContext context,
         Vec3d camera,
         OceanRenderFrame.Frame frame,
-        List<VesselWakeTracker.Trail> trails
+        List<VesselWakeTracker.Trail> trails,
+        ShaderCompatibility.Snapshot compatibility
     ) {
         MatrixStack matrices = context.matrixStack();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
@@ -92,10 +95,15 @@ public final class VesselWakeRenderer {
             VertexFormat.DrawMode.QUADS,
             VertexFormats.POSITION_COLOR
         );
+        int visualWaveComponents = compatibility.visualWaveComponents(frame.plan().visualWaveComponents());
+        double strengthMultiplier = compatibility.wakeMultiplier();
         boolean emitted = emitSegments(trails, (newer, older, segment) -> {
-            emitCpuStrip(builder, matrix, camera, frame, segment.leftArm(), newer.strength(), older.strength(), false);
-            emitCpuStrip(builder, matrix, camera, frame, segment.rightArm(), newer.strength(), older.strength(), false);
-            emitCpuStrip(builder, matrix, camera, frame, segment.center(), newer.strength(), older.strength(), true);
+            emitCpuStrip(builder, matrix, camera, frame, segment.leftArm(), newer.strength(), older.strength(), false,
+                visualWaveComponents, strengthMultiplier);
+            emitCpuStrip(builder, matrix, camera, frame, segment.rightArm(), newer.strength(), older.strength(), false,
+                visualWaveComponents, strengthMultiplier);
+            emitCpuStrip(builder, matrix, camera, frame, segment.center(), newer.strength(), older.strength(), true,
+                visualWaveComponents, strengthMultiplier);
         });
         if (!emitted) {
             return;
@@ -183,15 +191,21 @@ public final class VesselWakeRenderer {
         VesselWakeGeometry.Strip strip,
         double newerStrength,
         double olderStrength,
-        boolean center
+        boolean center,
+        int visualWaveComponents,
+        double strengthMultiplier
     ) {
         float innerAlpha = center ? 0.78F : 0.88F;
         float outerAlpha = center ? 0.78F : 0.08F;
 
-        emitCpu(consumer, matrix, camera, frame, strip.newerInner(), newerStrength, innerAlpha);
-        emitCpu(consumer, matrix, camera, frame, strip.newerOuter(), newerStrength, outerAlpha);
-        emitCpu(consumer, matrix, camera, frame, strip.olderOuter(), olderStrength, outerAlpha);
-        emitCpu(consumer, matrix, camera, frame, strip.olderInner(), olderStrength, innerAlpha);
+        emitCpu(consumer, matrix, camera, frame, strip.newerInner(), newerStrength, innerAlpha,
+            visualWaveComponents, strengthMultiplier);
+        emitCpu(consumer, matrix, camera, frame, strip.newerOuter(), newerStrength, outerAlpha,
+            visualWaveComponents, strengthMultiplier);
+        emitCpu(consumer, matrix, camera, frame, strip.olderOuter(), olderStrength, outerAlpha,
+            visualWaveComponents, strengthMultiplier);
+        emitCpu(consumer, matrix, camera, frame, strip.olderInner(), olderStrength, innerAlpha,
+            visualWaveComponents, strengthMultiplier);
     }
 
     private static void emitCpu(
@@ -201,14 +215,16 @@ public final class VesselWakeRenderer {
         OceanRenderFrame.Frame frame,
         VesselWakeGeometry.Point point,
         double strength,
-        float edgeAlpha
+        float edgeAlpha,
+        int visualWaveComponents,
+        double strengthMultiplier
     ) {
         OceanSurface.SurfaceSample sample = NewestOcean.clientOcean().sample(
             point.x(),
             point.z(),
             frame.timeSeconds(),
             frame.conditions(),
-            frame.plan().visualWaveComponents()
+            visualWaveComponents
         );
         double worldX = point.x() + sample.horizontalDisplacement().x();
         double worldY = sample.height() + SURFACE_LIFT;
@@ -221,7 +237,7 @@ public final class VesselWakeRenderer {
             camera.y,
             camera.z
         );
-        float alpha = (float) (clamp01(strength) * edgeAlpha);
+        float alpha = (float) (clamp01(strength * strengthMultiplier) * edgeAlpha);
         consumer.vertex(matrix, (float) relative.x(), (float) relative.y(), (float) relative.z())
             .color(0.93F, 0.98F, 1.0F, alpha);
     }
