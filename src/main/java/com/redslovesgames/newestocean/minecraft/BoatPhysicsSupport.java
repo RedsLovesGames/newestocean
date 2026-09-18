@@ -131,7 +131,8 @@ final class BoatPhysicsSupport {
                     profile.beam(),
                     profile.length(),
                     profile.parameters().mass(),
-                    profile.planingFactor()
+                    profile.planingFactor(),
+                    profile.parameters().horizontalDrag()
                 )
             );
             force = force.add(riding.force());
