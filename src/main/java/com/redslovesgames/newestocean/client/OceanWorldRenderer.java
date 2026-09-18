@@ -2,6 +2,8 @@ package com.redslovesgames.newestocean.client;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.redslovesgames.newestocean.NewestOcean;
+import com.redslovesgames.newestocean.client.config.OceanClientConfig;
+import com.redslovesgames.newestocean.client.config.OceanConfigManager;
 import com.redslovesgames.newestocean.math.Vec3;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
@@ -23,9 +25,9 @@ import org.joml.Matrix4f;
 public final class OceanWorldRenderer {
     private static final OceanLodTopology.Cache TOPOLOGY_CACHE = new OceanLodTopology.Cache();
     private static final int COVERAGE_REFRESH_TICKS = 100;
-    private static final double TARGET_FRAME_MS = 1000.0 / 60.0;
-    private static final AdaptiveQualityFrameSampler ADAPTIVE_QUALITY =
-        new AdaptiveQualityFrameSampler(OceanQuality.MEDIUM, TARGET_FRAME_MS);
+    private static final double DEFAULT_TARGET_FRAME_MS = 1000.0 / 60.0;
+    private static AdaptiveQualityFrameSampler adaptiveQuality =
+        new AdaptiveQualityFrameSampler(OceanQuality.MEDIUM, DEFAULT_TARGET_FRAME_MS);
 
     private static volatile OceanQuality quality = OceanQuality.MEDIUM;
     private static volatile boolean adaptiveQualityEnabled = true;
@@ -52,22 +54,35 @@ public final class OceanWorldRenderer {
         return adaptiveQualityEnabled;
     }
 
+    public static void applyConfig(OceanClientConfig config) {
+        if (config == null) throw new IllegalArgumentException("config is required");
+        OceanClientConfig safe = config.copy().sanitize();
+        quality = safe.quality();
+        adaptiveQualityEnabled = safe.adaptiveQualityEnabled();
+        adaptiveQuality = new AdaptiveQualityFrameSampler(
+            quality,
+            safe.targetFrameMs(),
+            safe.adaptiveMinQuality(),
+            safe.adaptiveMaxQuality()
+        );
+        quality = adaptiveQuality.quality();
+        resetCoverage();
+    }
+
     public static void setAdaptiveQualityEnabled(boolean enabled) {
         adaptiveQualityEnabled = enabled;
-        ADAPTIVE_QUALITY.forceQuality(quality);
+        adaptiveQuality.forceQuality(quality);
     }
 
     public static void setQuality(OceanQuality newQuality) {
-        if (newQuality == null) {
-            throw new IllegalArgumentException("quality is required");
-        }
-        ADAPTIVE_QUALITY.forceQuality(newQuality);
-        applyQuality(newQuality);
+        if (newQuality == null) throw new IllegalArgumentException("quality is required");
+        adaptiveQuality.forceQuality(newQuality);
+        applyQuality(adaptiveQuality.quality());
     }
 
     public static void reset() {
         resetCoverage();
-        ADAPTIVE_QUALITY.reset();
+        adaptiveQuality.reset();
     }
 
     private static void resetCoverage() {
@@ -88,24 +103,24 @@ public final class OceanWorldRenderer {
     }
 
     private static void sampleAdaptiveQuality() {
-        if (!adaptiveQualityEnabled) {
-            return;
-        }
-        ADAPTIVE_QUALITY.recordTimestampNanos(System.nanoTime())
-            .ifPresent(OceanWorldRenderer::applyQuality);
+        if (!adaptiveQualityEnabled) return;
+        adaptiveQuality.recordTimestampNanos(System.nanoTime()).ifPresent(OceanWorldRenderer::applyQuality);
     }
 
     private static void render(WorldRenderContext context) {
         MinecraftClient client = MinecraftClient.getInstance();
+        OceanClientConfig config = OceanConfigManager.current();
+        if (!config.oceanRenderingEnabled()) {
+            adaptiveQuality.reset();
+            return;
+        }
         if (!NewestOceanClient.isOceanSynchronized() || client.world == null || context.matrixStack() == null) {
-            ADAPTIVE_QUALITY.reset();
+            adaptiveQuality.reset();
             return;
         }
 
-        ShaderCompatibility.Snapshot compatibility = ShaderCompatibility.current();
-        if (compatibility.skipWorldRender()) {
-            return;
-        }
+        ShaderCompatibility.Snapshot compatibility = ShaderCompatibility.current(config);
+        if (compatibility.skipWorldRender()) return;
 
         sampleAdaptiveQuality();
 
@@ -123,20 +138,21 @@ public final class OceanWorldRenderer {
             client.world.getSeaLevel(),
             rainGradient,
             thunderGradient,
-            NewestOcean.clientOceanSeed()
+            NewestOcean.clientOceanSeed(),
+            config.renderDistanceScale()
         ).orElseThrow();
 
         OceanLodTopology topology = TOPOLOGY_CACHE.get(frame.plan());
         OceanLodCoverageMask currentCoverage = coverageFor(client, frame.plan(), topology);
         int[] waterIndices = currentCoverage.waterIndices(topology);
-        if (waterIndices.length == 0) {
-            return;
-        }
+        if (waterIndices.length == 0) return;
 
+        int requestedVisualWaves = config.effectiveVisualWaveComponents(frame.plan().visualWaveComponents());
+        int visualWaveComponents = compatibility.visualWaveComponents(requestedVisualWaves);
         if (compatibility.allowCustomShaders() && OceanGpuShader.available()) {
-            drawGpu(camera, frame, topology, waterIndices, rainGradient, thunderGradient);
+            drawGpu(camera, frame, topology, waterIndices, rainGradient, thunderGradient,
+                visualWaveComponents, config);
         } else {
-            int visualWaveComponents = compatibility.visualWaveComponents(frame.plan().visualWaveComponents());
             OceanLodMeshGenerator.Mesh mesh = OceanLodMeshGenerator.generate(
                 NewestOcean.clientOcean(),
                 frame.plan(),
@@ -146,20 +162,13 @@ public final class OceanWorldRenderer {
                 frame.conditions(),
                 visualWaveComponents
             );
-            drawCpu(context, camera, mesh, frame, rainGradient, thunderGradient, compatibility);
+            drawCpu(context, camera, mesh, frame, rainGradient, thunderGradient, compatibility, config);
         }
 
         ShorelineRenderer.render(
-            context,
-            camera,
-            frame,
-            topology,
-            shoreline,
-            rainGradient,
-            thunderGradient,
-            compatibility
+            context, camera, frame, topology, shoreline, rainGradient, thunderGradient, compatibility, config
         );
-        VesselWakeRenderer.render(context, camera, frame, quality, compatibility);
+        VesselWakeRenderer.render(context, camera, frame, quality, compatibility, config);
     }
 
     private static OceanLodCoverageMask coverageFor(
@@ -209,7 +218,9 @@ public final class OceanWorldRenderer {
         OceanLodTopology topology,
         int[] indices,
         float rainGradient,
-        float thunderGradient
+        float thunderGradient,
+        int visualWaveComponents,
+        OceanClientConfig config
     ) {
         BufferBuilder builder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION);
         OceanLodTopology.LocalVertex[] localVertices = topology.vertices();
@@ -222,14 +233,17 @@ public final class OceanWorldRenderer {
             emitStatic(builder, localVertices[indices[index + 2]], plan, camera);
         }
 
+        double whitecapIntensity = config.whitecapsEnabled() ? config.whitecapIntensity() : 0.0;
         OceanGpuShader.apply(
             NewestOcean.clientOcean(),
-            plan.visualWaveComponents(),
+            visualWaveComponents,
             frame.timeSeconds(),
             frame.conditions(),
             plan.quality(),
             rainGradient,
             thunderGradient,
+            whitecapIntensity,
+            config.oceanOpacity(),
             camera.x,
             camera.y,
             camera.z
@@ -237,12 +251,8 @@ public final class OceanWorldRenderer {
         OceanRenderState.drawSurface(builder);
     }
 
-    private static void emitStatic(
-        VertexConsumer consumer,
-        OceanLodTopology.LocalVertex vertex,
-        OceanLodPlanner.Plan plan,
-        Vec3d camera
-    ) {
+    private static void emitStatic(VertexConsumer consumer, OceanLodTopology.LocalVertex vertex,
+                                   OceanLodPlanner.Plan plan, Vec3d camera) {
         float x = (float) (plan.originX() + vertex.x() - camera.x);
         float z = (float) (plan.originZ() + vertex.z() - camera.z);
         consumer.vertex(x, 0.0F, z);
@@ -255,7 +265,8 @@ public final class OceanWorldRenderer {
         OceanRenderFrame.Frame frame,
         float rainGradient,
         float thunderGradient,
-        ShaderCompatibility.Snapshot compatibility
+        ShaderCompatibility.Snapshot compatibility,
+        OceanClientConfig config
     ) {
         MatrixStack matrices = context.matrixStack();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
@@ -269,30 +280,24 @@ public final class OceanWorldRenderer {
             OceanLodMeshGenerator.Vertex topRight = meshVertices[indices[index + 2]];
             OceanLodMeshGenerator.Vertex bottomRight = meshVertices[indices[index + 5]];
 
-            Vec3 normal = topLeft.normal()
-                .add(bottomLeft.normal())
-                .add(topRight.normal())
-                .add(bottomRight.normal())
-                .multiply(0.25)
-                .normalize();
+            Vec3 normal = topLeft.normal().add(bottomLeft.normal()).add(topRight.normal()).add(bottomRight.normal())
+                .multiply(0.25).normalize();
             float light = (float) MathHelper.clamp(0.72 + normal.y() * 0.20, 0.68, 0.94);
 
             double slopeMagnitude = Math.hypot(normal.x(), normal.z()) / Math.max(0.05, normal.y());
-            double averageHeight = (
-                topLeft.y() + bottomLeft.y() + topRight.y() + bottomRight.y()
-            ) * 0.25;
+            double averageHeight = (topLeft.y() + bottomLeft.y() + topRight.y() + bottomRight.y()) * 0.25;
             double crestHeight = Math.max(0.0, averageHeight - frame.conditions().tideOffset());
             double crestCurvature = crestHeight * (0.12 + 0.38 * Math.min(1.5, slopeMagnitude));
-            float foam = (float) (
-                OceanWhitecapModel.intensity(
-                    slopeMagnitude,
-                    crestCurvature,
-                    rainGradient,
-                    thunderGradient,
-                    frame.plan().quality(),
-                    1.0
-                ) * compatibility.whitecapMultiplier()
-            );
+            double userWhitecap = config.whitecapsEnabled() ? config.whitecapIntensity() : 0.0;
+            float foam = (float) (OceanWhitecapModel.intensity(
+                slopeMagnitude,
+                crestCurvature,
+                rainGradient,
+                thunderGradient,
+                frame.plan().quality(),
+                1.0
+            ) * compatibility.whitecapMultiplier() * userWhitecap);
+            foam = Math.min(1.0F, Math.max(0.0F, foam));
 
             float baseRed = 0.055F * light;
             float baseGreen = 0.34F * light;
@@ -300,8 +305,8 @@ public final class OceanWorldRenderer {
             float red = baseRed + (0.93F - baseRed) * foam;
             float green = baseGreen + (0.97F - baseGreen) * foam;
             float blue = baseBlue + (1.00F - baseBlue) * foam;
-            float baseAlpha = (float) compatibility.oceanBaseAlpha();
-            float alpha = Math.min(1.0F, baseAlpha + 0.16F * foam);
+            float alpha = (float) Math.min(1.0,
+                (compatibility.oceanBaseAlpha() + 0.16 * foam) * config.oceanOpacity());
 
             emitCpu(builder, matrix, camera, topLeft, red, green, blue, alpha);
             emitCpu(builder, matrix, camera, bottomLeft, red, green, blue, alpha);
@@ -324,8 +329,7 @@ public final class OceanWorldRenderer {
         float alpha
     ) {
         OceanRenderCoordinates.Relative relative = OceanRenderCoordinates.relative(
-            vertex.x(), vertex.y(), vertex.z(),
-            camera.x, camera.y, camera.z
+            vertex.x(), vertex.y(), vertex.z(), camera.x, camera.y, camera.z
         );
         consumer.vertex(matrix, (float) relative.x(), (float) relative.y(), (float) relative.z())
             .color(red, green, blue, alpha);
