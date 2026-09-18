@@ -170,9 +170,9 @@ Phase 13 adds bounded client-only wakes for vanilla boats and Small Ships:
 - New points require at least 0.75 blocks of movement.
 - Quality tiers cap both tracked vessel count and tracking radius.
 - Each segment generates two V-shaped stern arms plus a centered turbulence strip.
-- Wake height follows the synchronized procedural ocean.
-- Wave height is sampled once per history point and reused across that point's wake vertices to keep CPU cost bounded.
-- The wake pass is blended, depth-tested, camera-relative, and visual-only.
+- The preferred `newestocean:vessel_wake` shader conforms sparse wake geometry to the same packed Gerstner wave field as the ocean.
+- A CPU procedural-ocean path remains available as a fallback if the wake shader is unavailable.
+- The wake pass is blended, depth-tested, two-sided, camera-relative, and visual-only.
 - No wake packets, server wake state, particles, or vessel-force changes are introduced.
 
 See `docs/PHASE_13_VESSEL_WAKES.md` for the detailed runtime limits.
@@ -193,7 +193,7 @@ The `feature/ocean-core` branch currently contains:
 - Phase 10 time-based adaptive visual quality.
 - Phase 11 distance-based vessel physics LOD with full-rate safety exceptions.
 - Phase 12 procedural foam and whitecaps.
-- Phase 13 bounded client-only, wave-following vessel wakes.
+- Phase 13 bounded client-only, GPU-conformed vessel wakes with CPU fallback.
 - Vanilla boat wave-force correction.
 - Optional Small Ships tracking and size-scaled physics integration.
 - Vessel pose sampling from the same ocean surface.
@@ -215,8 +215,8 @@ Deterministic ocean state
           -> GPU-displaced visible ocean
           -> procedural whitecaps
           -> bounded vessel wake histories
-          -> wave-following wake quads
-          -> CPU fallback
+          -> GPU-conformed wake strips
+          -> CPU fallback paths
 
 Vessel physics
   -> shared hull profiles
