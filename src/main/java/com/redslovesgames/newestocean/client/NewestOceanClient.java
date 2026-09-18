@@ -1,18 +1,21 @@
 package com.redslovesgames.newestocean.client;
 
 import com.redslovesgames.newestocean.NewestOcean;
+import com.redslovesgames.newestocean.client.config.OceanConfigManager;
 import com.redslovesgames.newestocean.network.OceanSeedPayload;
 import com.redslovesgames.newestocean.network.OceanSyncState;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
-/** Client-only entrypoint for deterministic ocean synchronization and rendering. */
+/** Client-only entrypoint for deterministic ocean synchronization, rendering, and tuning. */
 public final class NewestOceanClient implements ClientModInitializer {
     private static final OceanSyncState OCEAN_SYNC = new OceanSyncState();
 
     @Override
     public void onInitializeClient() {
+        OceanConfigManager.load();
+
         ClientPlayConnectionEvents.INIT.register((handler, client) -> resetOceanSync());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> resetOceanSync());
 
@@ -30,6 +33,7 @@ public final class NewestOceanClient implements ClientModInitializer {
         VesselWakeShader.register();
         VesselWakeTracker.register();
         OceanWorldRenderer.register();
+        OceanDiagnosticsHud.register();
     }
 
     public static boolean isOceanSynchronized() {
