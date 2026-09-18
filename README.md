@@ -194,6 +194,26 @@ Phase 14 adds bounded terrain-aware shoaling, directional breaking waves, and pr
 
 See `docs/PHASE_14_SHORELINE_WAVES.md` for the detailed runtime model and limits.
 
+## Phase 16: shader compatibility and DEPTHS_ULTRA
+
+Phase 16 centralizes shaderpack compatibility while preserving the normal high-performance GPU path:
+
+- Iris absent or shaders disabled keeps Newest Ocean's custom ocean, wake, and shoreline shaders.
+- An active Iris shaderpack automatically switches those three systems to their CPU/vanilla-program fallback paths.
+- Iris shadow passes skip Newest Ocean world rendering to avoid duplicate ocean work and conflicts with shaderpack water-shadow handling.
+- Compatibility state is evaluated at render time so shaderpacks can be toggled without restarting Minecraft.
+- Iris access is reflection-only, so Iris and Sodium remain optional dependencies.
+- A shared render-state helper restores blend, depth-write, and culling state after Newest Ocean passes.
+- Server physics, networking, six-component physical waves, LOD radius, and shoreline cache authority are unchanged.
+
+The supplied `DEPTHS_ULTRA.zip` receives a dedicated profile because it already owns a heavy water pipeline with water vertex waving, reflections, foam, caustics, Distant Horizons water, colored lighting, and custom shadow handling. With DEPTHS_ULTRA active, Newest Ocean preserves its LOD/range but caps CPU visual wave evaluation to four components, uses 0.58 ocean base alpha, and scales CPU whitecaps/wakes/shoreline overlays by 0.65 / 0.90 / 0.90 respectively. Physics remains all six components.
+
+See `docs/PHASE_16_SHADER_COMPATIBILITY.md` for the compatibility modes and runtime details.
+
+## Optional Phase 15: spray and impacts
+
+Localized splash/spray particles remain possible polish using the existing re-entry impact severity hook, but they are not required for the core ocean system and are currently deferred.
+
 ## Current implementation
 
 The `feature/ocean-core` branch currently contains:
@@ -212,6 +232,8 @@ The `feature/ocean-core` branch currently contains:
 - Phase 12 procedural foam and whitecaps.
 - Phase 13 bounded client-only, GPU-conformed vessel wakes with CPU fallback.
 - Phase 14 bounded terrain-aware shoreline analysis, directional GPU breakers, shoaling, foam/wash, and CPU fallback.
+- Phase 16 automatic Iris compatibility with a DEPTHS_ULTRA-optimized CPU fallback profile.
+- Phase 15 spray/impact particles deferred as optional visual polish.
 - Vanilla boat wave-force correction.
 - Optional Small Ships tracking and size-scaled physics integration.
 - Vessel pose sampling from the same ocean surface.
@@ -225,18 +247,26 @@ Deterministic ocean state
   -> weather
   -> tides
   -> currents
-      -> authoritative server ocean
+      -> authoritative server ocean (always 6 physical waves)
       -> synchronized client reconstruction
           -> cached concentric LOD topology
           -> cached water coverage
           -> cached bounded shoreline field
-          -> GPU wave-uniform payload
-          -> GPU-displaced visible ocean
-          -> procedural whitecaps
-          -> directional shoreline breakers / shoaling / foam
-          -> bounded vessel wake histories
-          -> GPU-conformed wake strips
-          -> CPU fallback paths
+          -> centralized shader compatibility snapshot
+              -> NORMAL_GPU
+                  -> GPU wave-uniform payload
+                  -> GPU-displaced visible ocean
+                  -> procedural whitecaps
+                  -> directional shoreline shader
+                  -> GPU-conformed vessel wake strips
+              -> ACTIVE IRIS SHADERPACK
+                  -> CPU-displaced ocean + Minecraft position/color program
+                  -> CPU shoreline fallback
+                  -> CPU wake conformity fallback
+              -> DEPTHS_ULTRA
+                  -> same Iris-safe fallback
+                  -> max 4 visual CPU wave components
+                  -> lighter alpha/foam overlay tuning
 
 Vessel physics
   -> shared hull profiles
@@ -251,12 +281,14 @@ Vessel physics
 Renderer
   -> camera-centered LOD mesh
   -> water-only coverage indices
-  -> GPU Gerstner displacement and normals
   -> adaptive quality
+  -> centralized Iris/DEPTHS compatibility routing
+  -> ocean surface
   -> foam / whitecaps
   -> shoreline breakers / shoaling / foam wash
   -> vessel wakes
-  -> spray / impacts (next)
+  -> shared render-state restoration
+  -> optional spray / impacts (deferred)
 ```
 
-Physics and graphics remain separate. Reducing ocean graphics quality must never change authoritative vessel motion.
+Physics and graphics remain separate. Reducing ocean graphics quality or entering shaderpack compatibility mode must never change authoritative vessel motion.
