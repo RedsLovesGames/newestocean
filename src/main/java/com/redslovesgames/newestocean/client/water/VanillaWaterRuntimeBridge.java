@@ -38,7 +38,10 @@ public final class VanillaWaterRuntimeBridge {
     private static long uploadedShoreGeneration = Long.MIN_VALUE;
     private static long frameId;
     private static volatile boolean sourcePatchSuccess;
-    private static volatile OceanWaterInjectionState state = OceanWaterInjectionState.unsupported("Vanilla water shader has not been patched yet");
+    private static volatile OceanWaterInjectionState state = OceanWaterInjectionState.unsupported(
+        OceanWaterInjectionState.RendererPath.VANILLA,
+        "Vanilla water shader has not been patched yet"
+    );
 
     private VanillaWaterRuntimeBridge() {
     }
@@ -159,7 +162,10 @@ public final class VanillaWaterRuntimeBridge {
         }
         state = sourcePatchSuccess
             ? new OceanWaterInjectionState(true, false, false, OceanWaterInjectionState.RendererPath.VANILLA, "Awaiting water program bind")
-            : OceanWaterInjectionState.unsupported("Vanilla water shader has not been patched yet");
+            : OceanWaterInjectionState.unsupported(
+                OceanWaterInjectionState.RendererPath.VANILLA,
+                "Vanilla water shader has not been patched yet"
+            );
     }
 
     private static ShoreDistanceTexture.Payload updateShoreField(
