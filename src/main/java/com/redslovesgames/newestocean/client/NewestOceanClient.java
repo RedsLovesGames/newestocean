@@ -1,6 +1,7 @@
 package com.redslovesgames.newestocean.client;
 
 import com.redslovesgames.newestocean.NewestOcean;
+import com.redslovesgames.newestocean.client.compat.iris.IrisWaterRuntimeBridge;
 import com.redslovesgames.newestocean.client.compat.sodium.SodiumWaterRuntimeBridge;
 import com.redslovesgames.newestocean.client.config.OceanConfigManager;
 import com.redslovesgames.newestocean.client.water.VanillaWaterRuntimeBridge;
@@ -24,10 +25,12 @@ public final class NewestOceanClient implements ClientModInitializer {
         ClientChunkEvents.CHUNK_LOAD.register((world, chunk) -> {
             VanillaWaterRuntimeBridge.invalidateChunk(chunk.getPos().x, chunk.getPos().z);
             SodiumWaterRuntimeBridge.invalidateChunk(chunk.getPos().x, chunk.getPos().z);
+            IrisWaterRuntimeBridge.invalidateChunk(chunk.getPos().x, chunk.getPos().z);
         });
         ClientChunkEvents.CHUNK_UNLOAD.register((world, chunk) -> {
             VanillaWaterRuntimeBridge.invalidateChunk(chunk.getPos().x, chunk.getPos().z);
             SodiumWaterRuntimeBridge.invalidateChunk(chunk.getPos().x, chunk.getPos().z);
+            IrisWaterRuntimeBridge.invalidateChunk(chunk.getPos().x, chunk.getPos().z);
         });
 
         ClientPlayNetworking.registerGlobalReceiver(OceanSeedPayload.ID, (payload, context) ->
@@ -37,6 +40,7 @@ public final class NewestOceanClient implements ClientModInitializer {
                 OceanWorldRenderer.reset();
                 VanillaWaterRuntimeBridge.reset();
                 SodiumWaterRuntimeBridge.reset();
+                IrisWaterRuntimeBridge.reset();
                 VesselWakeTracker.reset();
             })
         );
@@ -63,6 +67,7 @@ public final class NewestOceanClient implements ClientModInitializer {
         OceanWorldRenderer.reset();
         VanillaWaterRuntimeBridge.reset();
         SodiumWaterRuntimeBridge.reset();
+        IrisWaterRuntimeBridge.reset();
         VesselWakeTracker.reset();
     }
 }
