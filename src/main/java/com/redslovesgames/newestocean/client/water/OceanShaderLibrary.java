@@ -20,6 +20,8 @@ public final class OceanShaderLibrary {
     public static final String FOAM_STRENGTH = "newestocean_foamStrength";
 
     private static final String RESOURCE = "/assets/newestocean/shaders/include/newestocean_water.glsl";
+    private static final String WAVE_A_PREFIX = "newestocean_waveA";
+    private static final String WAVE_B_PREFIX = "newestocean_waveB";
 
     private OceanShaderLibrary() {
     }
@@ -30,12 +32,35 @@ public final class OceanShaderLibrary {
 
     public static String waveAUniform(int index) {
         validateWaveIndex(index);
-        return "newestocean_waveA" + index;
+        return WAVE_A_PREFIX + index;
     }
 
     public static String waveBUniform(int index) {
         validateWaveIndex(index);
-        return "newestocean_waveB" + index;
+        return WAVE_B_PREFIX + index;
+    }
+
+    /**
+     * Returns whether a missing uniform makes geometric water displacement unsafe.
+     * Material-only inputs may be optimized away by shaderpacks without disabling
+     * otherwise valid displaced water.
+     */
+    public static boolean requiredForDisplacement(String name) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        if (name.startsWith(WAVE_A_PREFIX) || name.startsWith(WAVE_B_PREFIX)) {
+            return true;
+        }
+        return name.equals(WAVE_COUNT)
+            || name.equals(TIME)
+            || name.equals(WAVE_SCALE)
+            || name.equals(CAMERA_ORIGIN)
+            || name.equals(SHORE_TEXTURE)
+            || name.equals(SHORE_ORIGIN)
+            || name.equals(SHORE_SCALE)
+            || name.equals(STILL_WATER_BOUNDS)
+            || name.equals(FLOWING_WATER_BOUNDS);
     }
 
     private static void validateWaveIndex(int index) {
