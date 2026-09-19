@@ -23,4 +23,12 @@ class OceanShaderRequiredUniformTest {
         assertFalse(OceanShaderLibrary.requiredForDisplacement(OceanShaderLibrary.SEA_LEVEL));
         assertFalse(OceanShaderLibrary.requiredForDisplacement(OceanShaderLibrary.FOAM_STRENGTH));
     }
+
+    @Test
+    void onlyMissingRequiredUniformsInvalidateDisplacement() {
+        assertFalse(OceanShaderLibrary.missingUniformBreaksDisplacement(OceanShaderLibrary.TIME, 4));
+        assertTrue(OceanShaderLibrary.missingUniformBreaksDisplacement(OceanShaderLibrary.TIME, -1));
+        assertFalse(OceanShaderLibrary.missingUniformBreaksDisplacement(OceanShaderLibrary.SEA_LEVEL, -1));
+        assertFalse(OceanShaderLibrary.missingUniformBreaksDisplacement(OceanShaderLibrary.FOAM_STRENGTH, -1));
+    }
 }
