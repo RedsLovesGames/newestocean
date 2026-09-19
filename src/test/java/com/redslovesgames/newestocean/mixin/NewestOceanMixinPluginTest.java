@@ -2,6 +2,7 @@ package com.redslovesgames.newestocean.mixin;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -17,12 +18,25 @@ class NewestOceanMixinPluginTest {
     }
 
     @Test
-    void sodiumCompatibilityMixinRequiresSodiumWithoutIris() {
+    void sodiumCompatibilityMixinRequiresPinnedSodiumWithoutIris() {
         String mixin = "com.redslovesgames.newestocean.mixin.compat.sodium.SodiumWaterShaderMixin";
 
-        assertFalse(NewestOceanMixinPlugin.shouldApplyMixin(mixin, Set.of()));
-        assertTrue(NewestOceanMixinPlugin.shouldApplyMixin(mixin, Set.of("sodium")));
-        assertFalse(NewestOceanMixinPlugin.shouldApplyMixin(mixin, Set.of("sodium", "iris")));
+        assertFalse(NewestOceanMixinPlugin.shouldApplyMixin(mixin, Set.of(), Map.of()));
+        assertTrue(NewestOceanMixinPlugin.shouldApplyMixin(
+            mixin,
+            Set.of("sodium"),
+            Map.of("sodium", "0.8.12+mc1.21.1")
+        ));
+        assertFalse(NewestOceanMixinPlugin.shouldApplyMixin(
+            mixin,
+            Set.of("sodium"),
+            Map.of("sodium", "0.8.13+mc1.21.1")
+        ));
+        assertFalse(NewestOceanMixinPlugin.shouldApplyMixin(
+            mixin,
+            Set.of("sodium", "iris"),
+            Map.of("sodium", "0.8.12+mc1.21.1", "iris", "1.8.14-beta.1+mc1.21.1")
+        ));
     }
 
     @Test
