@@ -7,7 +7,9 @@
     "BoatEntityMixin"
   ],
   "client": [
-    "client.ShaderProgramMixin"
+    "client.ShaderProgramMixin",
+    "compat.sodium.SodiumShaderLoaderMixin",
+    "compat.sodium.SodiumShaderChunkRendererMixin"
   ],
   "injectors": { "defaultRequire": 1 },
   "overwrites": { "requireAnnotations": true }
