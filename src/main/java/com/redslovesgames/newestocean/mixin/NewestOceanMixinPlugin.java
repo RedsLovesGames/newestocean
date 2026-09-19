@@ -5,8 +5,10 @@ import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -15,6 +17,7 @@ import java.util.Set;
 public final class NewestOceanMixinPlugin implements IMixinConfigPlugin {
     private static final String IRIS_COMPAT_PACKAGE = ".compat.iris.";
     private static final String SODIUM_COMPAT_PACKAGE = ".compat.sodium.";
+    private static final String PINNED_SODIUM_VERSION = "0.8.12";
 
     static boolean shouldApplyMixin(String mixinClassName, Set<String> loadedMods) {
         if (mixinClassName.contains(IRIS_COMPAT_PACKAGE)) {
@@ -24,6 +27,31 @@ public final class NewestOceanMixinPlugin implements IMixinConfigPlugin {
             return loadedMods.contains("sodium") && !loadedMods.contains("iris");
         }
         return true;
+    }
+
+    static boolean shouldApplyMixin(
+        String mixinClassName,
+        Set<String> loadedMods,
+        Map<String, String> loadedVersions
+    ) {
+        if (!shouldApplyMixin(mixinClassName, loadedMods)) {
+            return false;
+        }
+        if (mixinClassName.contains(SODIUM_COMPAT_PACKAGE)) {
+            return supportsPinnedSodium(loadedVersions.get("sodium"));
+        }
+        return true;
+    }
+
+    private static boolean supportsPinnedSodium(String version) {
+        if (version == null) {
+            return false;
+        }
+        String normalized = version.trim();
+        return normalized.equals(PINNED_SODIUM_VERSION)
+            || normalized.startsWith(PINNED_SODIUM_VERSION + "+")
+            || normalized.startsWith("mc1.21.1-" + PINNED_SODIUM_VERSION)
+            || normalized.startsWith(PINNED_SODIUM_VERSION + "-mc1.21.1");
     }
 
     @Override
@@ -39,13 +67,20 @@ public final class NewestOceanMixinPlugin implements IMixinConfigPlugin {
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         FabricLoader loader = FabricLoader.getInstance();
         Set<String> loadedRendererMods = new HashSet<>(2);
+        Map<String, String> loadedVersions = new HashMap<>(2);
         if (loader.isModLoaded("iris")) {
             loadedRendererMods.add("iris");
+            loader.getModContainer("iris").ifPresent(container ->
+                loadedVersions.put("iris", container.getMetadata().getVersion().getFriendlyString())
+            );
         }
         if (loader.isModLoaded("sodium")) {
             loadedRendererMods.add("sodium");
+            loader.getModContainer("sodium").ifPresent(container ->
+                loadedVersions.put("sodium", container.getMetadata().getVersion().getFriendlyString())
+            );
         }
-        return shouldApplyMixin(mixinClassName, loadedRendererMods);
+        return shouldApplyMixin(mixinClassName, loadedRendererMods, loadedVersions);
     }
 
     @Override
