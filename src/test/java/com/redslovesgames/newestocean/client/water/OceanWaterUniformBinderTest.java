@@ -67,11 +67,21 @@ class OceanWaterUniformBinderTest {
 
         OceanWaterWaveData.PackedWave first = frame.waveData().wave(0);
         assertArrayEquals(
-            new float[] {(float) first.a().x(), (float) first.a().y(), (float) first.a().z(), (float) first.a().w()},
+            new float[] {
+                first.a().directionX(),
+                first.a().directionZ(),
+                first.a().amplitude(),
+                first.a().waveNumber()
+            },
             sink.vec4.get(OceanShaderLibrary.waveAUniform(0))
         );
         assertArrayEquals(
-            new float[] {(float) first.b().x(), (float) first.b().y(), (float) first.b().z(), (float) first.b().w()},
+            new float[] {
+                first.b().angularFrequency(),
+                first.b().phase(),
+                first.b().steepness(),
+                first.b().auxiliary()
+            },
             sink.vec4.get(OceanShaderLibrary.waveBUniform(0))
         );
     }
