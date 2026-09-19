@@ -17,11 +17,12 @@ class NewestOceanMixinPluginTest {
     }
 
     @Test
-    void sodiumCompatibilityMixinRequiresSodium() {
+    void sodiumCompatibilityMixinRequiresSodiumWithoutIris() {
         String mixin = "com.redslovesgames.newestocean.mixin.compat.sodium.SodiumWaterShaderMixin";
 
         assertFalse(NewestOceanMixinPlugin.shouldApplyMixin(mixin, Set.of()));
         assertTrue(NewestOceanMixinPlugin.shouldApplyMixin(mixin, Set.of("sodium")));
+        assertFalse(NewestOceanMixinPlugin.shouldApplyMixin(mixin, Set.of("sodium", "iris")));
     }
 
     @Test
