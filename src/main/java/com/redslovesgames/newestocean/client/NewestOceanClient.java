@@ -2,9 +2,11 @@ package com.redslovesgames.newestocean.client;
 
 import com.redslovesgames.newestocean.NewestOcean;
 import com.redslovesgames.newestocean.client.config.OceanConfigManager;
+import com.redslovesgames.newestocean.client.water.VanillaWaterRuntimeBridge;
 import com.redslovesgames.newestocean.network.OceanSeedPayload;
 import com.redslovesgames.newestocean.network.OceanSyncState;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
@@ -18,12 +20,19 @@ public final class NewestOceanClient implements ClientModInitializer {
 
         ClientPlayConnectionEvents.INIT.register((handler, client) -> resetOceanSync());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> resetOceanSync());
+        ClientChunkEvents.CHUNK_LOAD.register((world, chunk) ->
+            VanillaWaterRuntimeBridge.invalidateChunk(chunk.getPos().x, chunk.getPos().z)
+        );
+        ClientChunkEvents.CHUNK_UNLOAD.register((world, chunk) ->
+            VanillaWaterRuntimeBridge.invalidateChunk(chunk.getPos().x, chunk.getPos().z)
+        );
 
         ClientPlayNetworking.registerGlobalReceiver(OceanSeedPayload.ID, (payload, context) ->
             context.client().execute(() -> {
                 OCEAN_SYNC.accept(payload.seed());
                 NewestOcean.setClientOceanSeed(payload.seed());
                 OceanWorldRenderer.reset();
+                VanillaWaterRuntimeBridge.reset();
                 VesselWakeTracker.reset();
             })
         );
@@ -48,6 +57,7 @@ public final class NewestOceanClient implements ClientModInitializer {
         OCEAN_SYNC.reset();
         NewestOcean.setClientOceanSeed(0L);
         OceanWorldRenderer.reset();
+        VanillaWaterRuntimeBridge.reset();
         VesselWakeTracker.reset();
     }
 }
