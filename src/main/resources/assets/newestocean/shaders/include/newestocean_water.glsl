@@ -3,6 +3,7 @@ uniform int newestocean_waveCount;
 uniform float newestocean_time;
 uniform float newestocean_waveScale;
 uniform float newestocean_seaLevel;
+uniform vec3 newestocean_cameraOrigin;
 uniform sampler2D newestocean_shoreTexture;
 uniform vec2 newestocean_shoreOrigin;
 uniform vec2 newestocean_shoreScale;
@@ -134,7 +135,7 @@ vec4 newestocean_waveB(int index) {
 }
 
 float newestocean_shoreFactor(vec2 worldXZ) {
-    vec2 shoreUv = (worldXZ - newestocean_shoreOrigin) * newestocean_shoreScale;
+    vec2 shoreUv = (worldXZ - newestocean_shoreOrigin + vec2(0.5)) * newestocean_shoreScale;
     float t = clamp(texture(newestocean_shoreTexture, shoreUv).r, 0.0, 1.0);
     return t * t * (3.0 - 2.0 * t);
 }
