@@ -18,6 +18,7 @@ public final class NewestOceanMixinPlugin implements IMixinConfigPlugin {
     private static final String IRIS_COMPAT_PACKAGE = ".compat.iris.";
     private static final String SODIUM_COMPAT_PACKAGE = ".compat.sodium.";
     private static final String PINNED_SODIUM_VERSION = "0.8.12";
+    private static final String PINNED_IRIS_VERSION = "1.8.14-beta.1";
 
     static boolean shouldApplyMixin(String mixinClassName, Set<String> loadedMods) {
         if (mixinClassName.contains(IRIS_COMPAT_PACKAGE)) {
@@ -37,10 +38,25 @@ public final class NewestOceanMixinPlugin implements IMixinConfigPlugin {
         if (!shouldApplyMixin(mixinClassName, loadedMods)) {
             return false;
         }
+        if (mixinClassName.contains(IRIS_COMPAT_PACKAGE)) {
+            return supportsPinnedIris(loadedVersions.get("iris"))
+                && loadedMods.contains("sodium")
+                && supportsPinnedSodium(loadedVersions.get("sodium"));
+        }
         if (mixinClassName.contains(SODIUM_COMPAT_PACKAGE)) {
             return supportsPinnedSodium(loadedVersions.get("sodium"));
         }
         return true;
+    }
+
+    private static boolean supportsPinnedIris(String version) {
+        if (version == null) {
+            return false;
+        }
+        String normalized = version.trim();
+        return normalized.equals(PINNED_IRIS_VERSION)
+            || normalized.startsWith(PINNED_IRIS_VERSION + "+")
+            || normalized.startsWith(PINNED_IRIS_VERSION + "-mc1.21.1");
     }
 
     private static boolean supportsPinnedSodium(String version) {
