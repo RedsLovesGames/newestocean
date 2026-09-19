@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "id": "newestocean",
+  "version": "${version}",
+  "name": "Newest Ocean",
+  "description": "Performance-first procedural ocean waves and vessel physics for Fabric 1.21.1.",
+  "authors": [
+    "RedsLovesGames"
+  ],
+  "contact": {
+    "sources": "https://github.com/RedsLovesGames/newestocean"
+  },
+  "license": "ARR",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.redslovesgames.newestocean.NewestOcean"
+    ],
+    "client": [
+      "com.redslovesgames.newestocean.client.NewestOceanClient"
+    ],
+    "modmenu": [
+      "com.redslovesgames.newestocean.client.config.NewestOceanModMenu"
+    ]
+  },
+  "mixins": [
+    "newestocean.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.14",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": ">=0.116.13+1.21.1",
+    "cloth-config": ">=15.0.140"
+  },
+  "suggests": {
+    "modmenu": "*",
+    "smallships": "*"
+  }
+}

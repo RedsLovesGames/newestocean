@@ -1,0 +1,34 @@
+{
+  "blend": {
+    "func": "add",
+    "srcrgb": "srcalpha",
+    "dstrgb": "1-srcalpha"
+  },
+  "vertex": "newestocean:shoreline_break",
+  "fragment": "newestocean:shoreline_break",
+  "attributes": ["Position", "Color"],
+  "samplers": [],
+  "uniforms": [
+    {"name":"ModelViewMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+    {"name":"ProjMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+    {"name":"ShorelineTime","type":"float","count":1,"values":[0]},
+    {"name":"ShorelineWaveScale","type":"float","count":1,"values":[1]},
+    {"name":"ShorelineWaterHeight","type":"float","count":1,"values":[0]},
+    {"name":"ShorelineCameraXZ","type":"float","count":2,"values":[0,0]},
+    {"name":"ShorelineWaveCount","type":"float","count":1,"values":[6]},
+    {"name":"ShorelineStormStrength","type":"float","count":1,"values":[0]},
+    {"name":"ShorelineQuality","type":"float","count":1,"values":[0.78]},
+    {"name":"ShorelineWaveA0","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"ShorelineWaveB0","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"ShorelineWaveA1","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"ShorelineWaveB1","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"ShorelineWaveA2","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"ShorelineWaveB2","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"ShorelineWaveA3","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"ShorelineWaveB3","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"ShorelineWaveA4","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"ShorelineWaveB4","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"ShorelineWaveA5","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"ShorelineWaveB5","type":"float","count":4,"values":[0,0,0,0]}
+  ]
+}

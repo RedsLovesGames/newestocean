@@ -1,0 +1,32 @@
+{
+  "blend": {
+    "func": "add",
+    "srcrgb": "srcalpha",
+    "dstrgb": "1-srcalpha"
+  },
+  "vertex": "newestocean:vessel_wake",
+  "fragment": "newestocean:vessel_wake",
+  "attributes": ["Position", "Color"],
+  "samplers": [],
+  "uniforms": [
+    {"name":"ModelViewMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+    {"name":"ProjMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+    {"name":"WakeTime","type":"float","count":1,"values":[0]},
+    {"name":"WakeWaveScale","type":"float","count":1,"values":[1]},
+    {"name":"WakeWaterHeight","type":"float","count":1,"values":[0]},
+    {"name":"WakeCameraXZ","type":"float","count":2,"values":[0,0]},
+    {"name":"WakeWaveCount","type":"float","count":1,"values":[6]},
+    {"name":"WakeWaveA0","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"WakeWaveB0","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"WakeWaveA1","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"WakeWaveB1","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"WakeWaveA2","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"WakeWaveB2","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"WakeWaveA3","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"WakeWaveB3","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"WakeWaveA4","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"WakeWaveB4","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"WakeWaveA5","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"WakeWaveB5","type":"float","count":4,"values":[0,0,0,0]}
+  ]
+}

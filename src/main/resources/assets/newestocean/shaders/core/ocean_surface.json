@@ -1,0 +1,38 @@
+{
+  "blend": {
+    "func": "add",
+    "srcrgb": "srcalpha",
+    "dstrgb": "1-srcalpha"
+  },
+  "vertex": "newestocean:ocean_surface",
+  "fragment": "newestocean:ocean_surface",
+  "attributes": ["Position"],
+  "samplers": [],
+  "uniforms": [
+    {"name":"ModelViewMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+    {"name":"ProjMat","type":"matrix4x4","count":16,"values":[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]},
+    {"name":"OceanTime","type":"float","count":1,"values":[0]},
+    {"name":"OceanWaveScale","type":"float","count":1,"values":[1]},
+    {"name":"OceanWaterHeight","type":"float","count":1,"values":[0]},
+    {"name":"OceanCameraXZ","type":"float","count":2,"values":[0,0]},
+    {"name":"OceanPlanOriginXZ","type":"float","count":2,"values":[0,0]},
+    {"name":"OceanRenderRadius","type":"float","count":1,"values":[56]},
+    {"name":"OceanWaveCount","type":"float","count":1,"values":[6]},
+    {"name":"OceanFoamQuality","type":"float","count":1,"values":[0.75]},
+    {"name":"OceanStormStrength","type":"float","count":1,"values":[0]},
+    {"name":"OceanWhitecapIntensity","type":"float","count":1,"values":[1]},
+    {"name":"OceanOpacity","type":"float","count":1,"values":[1]},
+    {"name":"OceanWaveA0","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"OceanWaveB0","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"OceanWaveA1","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"OceanWaveB1","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"OceanWaveA2","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"OceanWaveB2","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"OceanWaveA3","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"OceanWaveB3","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"OceanWaveA4","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"OceanWaveB4","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"OceanWaveA5","type":"float","count":4,"values":[0,0,0,0]},
+    {"name":"OceanWaveB5","type":"float","count":4,"values":[0,0,0,0]}
+  ]
+}
