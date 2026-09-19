@@ -11,7 +11,9 @@
     "compat.sodium.SodiumShaderLoaderMixin",
     "compat.sodium.SodiumShaderChunkRendererMixin",
     "compat.iris.IrisTransformPatcherMixin",
-    "compat.iris.IrisSodiumShaderMixin"
+    "compat.iris.IrisSodiumShaderMixin",
+    "compat.iris.IrisNoPackShaderLoaderMixin",
+    "compat.iris.IrisNoPackShaderChunkRendererMixin"
   ],
   "injectors": { "defaultRequire": 1 },
   "overwrites": { "requireAnnotations": true }
