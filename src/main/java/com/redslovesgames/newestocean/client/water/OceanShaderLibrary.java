@@ -11,6 +11,7 @@ public final class OceanShaderLibrary {
     public static final String TIME = "newestocean_time";
     public static final String WAVE_SCALE = "newestocean_waveScale";
     public static final String SEA_LEVEL = "newestocean_seaLevel";
+    public static final String CAMERA_ORIGIN = "newestocean_cameraOrigin";
     public static final String SHORE_TEXTURE = "newestocean_shoreTexture";
     public static final String SHORE_ORIGIN = "newestocean_shoreOrigin";
     public static final String SHORE_SCALE = "newestocean_shoreScale";
