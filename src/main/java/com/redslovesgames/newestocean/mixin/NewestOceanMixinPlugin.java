@@ -21,7 +21,7 @@ public final class NewestOceanMixinPlugin implements IMixinConfigPlugin {
             return loadedMods.contains("iris");
         }
         if (mixinClassName.contains(SODIUM_COMPAT_PACKAGE)) {
-            return loadedMods.contains("sodium");
+            return loadedMods.contains("sodium") && !loadedMods.contains("iris");
         }
         return true;
     }
