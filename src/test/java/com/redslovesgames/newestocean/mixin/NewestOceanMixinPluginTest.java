@@ -10,11 +10,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NewestOceanMixinPluginTest {
     @Test
-    void irisCompatibilityMixinRequiresIris() {
+    void irisCompatibilityMixinRequiresPinnedIris() {
         String mixin = "com.redslovesgames.newestocean.mixin.compat.iris.IrisWaterShaderMixin";
 
-        assertFalse(NewestOceanMixinPlugin.shouldApplyMixin(mixin, Set.of()));
-        assertTrue(NewestOceanMixinPlugin.shouldApplyMixin(mixin, Set.of("iris")));
+        assertFalse(NewestOceanMixinPlugin.shouldApplyMixin(mixin, Set.of(), Map.of()));
+        assertTrue(NewestOceanMixinPlugin.shouldApplyMixin(
+            mixin,
+            Set.of("iris", "sodium"),
+            Map.of("iris", "1.8.14-beta.1+mc1.21.1", "sodium", "0.8.12+mc1.21.1")
+        ));
+        assertFalse(NewestOceanMixinPlugin.shouldApplyMixin(
+            mixin,
+            Set.of("iris", "sodium"),
+            Map.of("iris", "1.8.14", "sodium", "0.8.12+mc1.21.1")
+        ));
+        assertFalse(NewestOceanMixinPlugin.shouldApplyMixin(
+            mixin,
+            Set.of("iris", "sodium"),
+            Map.of("iris", "1.8.15+mc1.21.1", "sodium", "0.8.12+mc1.21.1")
+        ));
     }
 
     @Test
