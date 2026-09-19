@@ -4,6 +4,7 @@ import com.redslovesgames.newestocean.client.water.OceanShaderLibrary;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -73,5 +74,15 @@ class SodiumWaterShaderBridgeTest {
             SodiumWaterShaderBridge.CHUNK_RENDERER_CLASS
         );
         assertEquals("begin", SodiumWaterShaderBridge.BEGIN_METHOD);
+    }
+
+    @Test
+    void runtimeVersionGateAcceptsOnlyPinnedSodium0812Family() {
+        assertTrue(SodiumWaterRuntimeBridge.supportsVersion("0.8.12"));
+        assertTrue(SodiumWaterRuntimeBridge.supportsVersion("0.8.12+mc1.21.1"));
+        assertTrue(SodiumWaterRuntimeBridge.supportsVersion("mc1.21.1-0.8.12-fabric"));
+        assertFalse(SodiumWaterRuntimeBridge.supportsVersion("0.8.11+mc1.21.1"));
+        assertFalse(SodiumWaterRuntimeBridge.supportsVersion("0.8.13+mc1.21.1"));
+        assertFalse(SodiumWaterRuntimeBridge.supportsVersion(null));
     }
 }
