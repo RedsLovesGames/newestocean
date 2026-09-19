@@ -9,7 +9,9 @@
   "client": [
     "client.ShaderProgramMixin",
     "compat.sodium.SodiumShaderLoaderMixin",
-    "compat.sodium.SodiumShaderChunkRendererMixin"
+    "compat.sodium.SodiumShaderChunkRendererMixin",
+    "compat.iris.IrisTransformPatcherMixin",
+    "compat.iris.IrisSodiumShaderMixin"
   ],
   "injectors": { "defaultRequire": 1 },
   "overwrites": { "requireAnnotations": true }
