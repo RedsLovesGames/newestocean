@@ -73,6 +73,10 @@ public final class IrisWaterRuntimeBridge {
             || normalized.startsWith(SUPPORTED_IRIS + "+mc1.21.1");
     }
 
+    public static boolean shouldUseNoPackFallback(boolean irisLoaded, boolean shaderPackInUse) {
+        return irisLoaded && !shaderPackInUse;
+    }
+
     public static void noteSourcePatch(ProgramKind kind, boolean success, String failureReason) {
         if (kind == null) {
             throw new IllegalArgumentException("Iris program kind is required");
@@ -115,7 +119,9 @@ public final class IrisWaterRuntimeBridge {
 
     /** Called from Sodium's default chunk path when Iris is installed but no shaderpack is active. */
     public static void bindNoPackSodiumProgram() {
-        if (!isSupportedInstalledIris() || shaderPackInUse() || !waterSourcePatchSuccess) {
+        if (!isSupportedInstalledIris()
+            || !shouldUseNoPackFallback(true, shaderPackInUse())
+            || !waterSourcePatchSuccess) {
             return;
         }
         bindCurrentProgram(ProgramKind.WATER, false);
