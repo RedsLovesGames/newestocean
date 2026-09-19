@@ -63,6 +63,10 @@ public final class OceanShaderLibrary {
             || name.equals(FLOWING_WATER_BOUNDS);
     }
 
+    public static boolean missingUniformBreaksDisplacement(String name, int location) {
+        return location < 0 && requiredForDisplacement(name);
+    }
+
     private static void validateWaveIndex(int index) {
         if (index < 0 || index >= OceanWaterWaveData.MAX_COMPONENTS) {
             throw new IllegalArgumentException(

@@ -1,6 +1,7 @@
 package com.redslovesgames.newestocean.client.compat.sodium;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.redslovesgames.newestocean.client.water.OceanShaderLibrary;
 import com.redslovesgames.newestocean.client.water.OceanWaterUniformBinder;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
@@ -83,7 +84,7 @@ final class SodiumWaterProgramSink implements OceanWaterUniformBinder.Sink {
 
     private int location(String name) {
         int location = GL20.glGetUniformLocation(programId, name);
-        if (location < 0) {
+        if (OceanShaderLibrary.missingUniformBreaksDisplacement(name, location)) {
             missingUniform = true;
         }
         return location;

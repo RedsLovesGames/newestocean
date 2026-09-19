@@ -89,7 +89,7 @@ public final class VanillaWaterProgramSink implements OceanWaterUniformBinder.Si
             throw new IllegalArgumentException("uniform name is required");
         }
         int location = GL20.glGetUniformLocation(programId, name);
-        if (location < 0) {
+        if (OceanShaderLibrary.missingUniformBreaksDisplacement(name, location)) {
             missingUniform = true;
         }
         return location;
