@@ -5,11 +5,11 @@ package com.redslovesgames.newestocean.client;
  * change server-authoritative vessel motion.
  */
 public enum OceanQuality {
-    POTATO(2, 28, 4),
-    LOW(3, 40, 3),
-    MEDIUM(4, 56, 2),
-    HIGH(6, 72, 1),
-    ULTRA(6, 96, 1);
+    POTATO(4, 28, 4),
+    LOW(6, 40, 3),
+    MEDIUM(10, 56, 2),
+    HIGH(14, 72, 1),
+    ULTRA(24, 96, 1);
 
     private final int visualWaveComponents;
     private final int renderRadiusBlocks;

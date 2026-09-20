@@ -7,7 +7,7 @@ import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 
-/** Cloth Config screen for every client-side Newest Ocean tuning setting. */
+/** Cloth Config screen for active client-side Newest Ocean tuning settings. */
 public final class NewestOceanConfigScreen {
     private NewestOceanConfigScreen() {
     }
@@ -46,21 +46,9 @@ public final class NewestOceanConfigScreen {
             .build());
 
         ConfigCategory ocean = builder.getOrCreateCategory(Text.literal("Ocean"));
-        ocean.addEntry(entries.startIntSlider(Text.literal("Visual Wave Count (0 = Auto)"), working.visualWaveOverride(), 0, 6)
+        ocean.addEntry(entries.startIntSlider(Text.literal("Visual Wave Count (0 = Auto)"), working.visualWaveOverride(), 0, OceanClientConfig.MAX_VISUAL_WAVES)
             .setDefaultValue(OceanClientConfig.AUTO_WAVES)
             .setSaveConsumer(working::setVisualWaveOverride)
-            .build());
-        ocean.addEntry(entries.startDoubleField(Text.literal("Render Distance Scale"), working.renderDistanceScale())
-            .setMin(0.50)
-            .setMax(2.00)
-            .setDefaultValue(1.0)
-            .setSaveConsumer(working::setRenderDistanceScale)
-            .build());
-        ocean.addEntry(entries.startDoubleField(Text.literal("Ocean Opacity"), working.oceanOpacity())
-            .setMin(0.25)
-            .setMax(1.00)
-            .setDefaultValue(1.0)
-            .setSaveConsumer(working::setOceanOpacity)
             .build());
 
         ConfigCategory whitecaps = builder.getOrCreateCategory(Text.literal("Whitecaps"));
@@ -104,15 +92,9 @@ public final class NewestOceanConfigScreen {
             .setDefaultValue(true)
             .setSaveConsumer(working::setCustomShadersEnabled)
             .build());
-        shaders.addEntry(entries.startIntSlider(Text.literal("DEPTHS ULTRA Visual Wave Cap"), working.depthsVisualWaveCap(), 1, 6)
-            .setDefaultValue(4)
+        shaders.addEntry(entries.startIntSlider(Text.literal("DEPTHS ULTRA Visual Wave Cap"), working.depthsVisualWaveCap(), 1, OceanClientConfig.MAX_VISUAL_WAVES)
+            .setDefaultValue(18)
             .setSaveConsumer(working::setDepthsVisualWaveCap)
-            .build());
-        shaders.addEntry(entries.startDoubleField(Text.literal("DEPTHS ULTRA Ocean Alpha"), working.depthsOceanAlpha())
-            .setMin(0.25)
-            .setMax(1.0)
-            .setDefaultValue(0.58)
-            .setSaveConsumer(working::setDepthsOceanAlpha)
             .build());
         shaders.addEntry(entries.startDoubleField(Text.literal("DEPTHS ULTRA Whitecap Multiplier"), working.depthsWhitecapMultiplier())
             .setMin(0.0)

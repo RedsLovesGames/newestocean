@@ -5,6 +5,7 @@ import com.redslovesgames.newestocean.client.OceanQuality;
 /** Client-only rendering and performance settings. Physical ocean behavior never reads this class. */
 public final class OceanClientConfig {
     public static final int AUTO_WAVES = 0;
+    public static final int MAX_VISUAL_WAVES = 24;
 
     private boolean oceanRenderingEnabled = true;
     private OceanQuality quality = OceanQuality.MEDIUM;
@@ -22,7 +23,7 @@ public final class OceanClientConfig {
     private boolean shorelineEnabled = true;
     private double shorelineIntensity = 1.0;
     private boolean customShadersEnabled = true;
-    private int depthsVisualWaveCap = 4;
+    private int depthsVisualWaveCap = 18;
     private double depthsOceanAlpha = 0.58;
     private double depthsWhitecapMultiplier = 0.65;
     private double depthsWakeMultiplier = 0.90;
@@ -70,13 +71,13 @@ public final class OceanClientConfig {
             adaptiveMaxQuality = swap;
         }
         targetFps = clamp(targetFps, 30, 240);
-        visualWaveOverride = clamp(visualWaveOverride, AUTO_WAVES, 6);
+        visualWaveOverride = clamp(visualWaveOverride, AUTO_WAVES, MAX_VISUAL_WAVES);
         renderDistanceScale = clampFinite(renderDistanceScale, 0.50, 2.00, 1.0);
         oceanOpacity = clampFinite(oceanOpacity, 0.25, 1.00, 1.0);
         whitecapIntensity = clampFinite(whitecapIntensity, 0.0, 2.0, 1.0);
         wakeIntensity = clampFinite(wakeIntensity, 0.0, 2.0, 1.0);
         shorelineIntensity = clampFinite(shorelineIntensity, 0.0, 2.0, 1.0);
-        depthsVisualWaveCap = clamp(depthsVisualWaveCap, 1, 6);
+        depthsVisualWaveCap = clamp(depthsVisualWaveCap, 1, MAX_VISUAL_WAVES);
         depthsOceanAlpha = clampFinite(depthsOceanAlpha, 0.25, 1.0, 0.58);
         depthsWhitecapMultiplier = clampFinite(depthsWhitecapMultiplier, 0.0, 2.0, 0.65);
         depthsWakeMultiplier = clampFinite(depthsWakeMultiplier, 0.0, 2.0, 0.90);

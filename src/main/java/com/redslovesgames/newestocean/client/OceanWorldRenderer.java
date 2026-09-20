@@ -148,7 +148,7 @@ public final class OceanWorldRenderer {
         if (waterIndices.length == 0) return;
 
         int requestedVisualWaves = config.effectiveVisualWaveComponents(frame.plan().visualWaveComponents());
-        int visualWaveComponents = compatibility.visualWaveComponents(requestedVisualWaves);
+        int visualWaveComponents = Math.min(compatibility.visualWaveComponents(requestedVisualWaves), OceanGpuWaveData.MAX_WAVES);
         if (compatibility.allowCustomShaders() && OceanGpuShader.available()) {
             drawGpu(context, camera, frame, topology, waterIndices, rainGradient, thunderGradient,
                 visualWaveComponents, config);

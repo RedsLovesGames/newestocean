@@ -34,8 +34,8 @@ public final class ShaderCompatibility {
     ) {
         public Snapshot {
             if (mode == null) throw new IllegalArgumentException("compatibility mode is required");
-            if (depthsVisualWaveCap < 1 || depthsVisualWaveCap > 6) {
-                throw new IllegalArgumentException("DEPTHS visual wave cap must be 1-6");
+            if (depthsVisualWaveCap < 1 || depthsVisualWaveCap > OceanClientConfig.MAX_VISUAL_WAVES) {
+                throw new IllegalArgumentException("DEPTHS visual wave cap must be 1-" + OceanClientConfig.MAX_VISUAL_WAVES);
             }
         }
 

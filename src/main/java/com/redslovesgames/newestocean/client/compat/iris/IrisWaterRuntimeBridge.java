@@ -5,6 +5,7 @@ import com.redslovesgames.newestocean.NewestOcean;
 import com.redslovesgames.newestocean.client.NewestOceanClient;
 import com.redslovesgames.newestocean.client.OceanQuality;
 import com.redslovesgames.newestocean.client.OceanWorldRenderer;
+import com.redslovesgames.newestocean.client.ShaderCompatibility;
 import com.redslovesgames.newestocean.client.config.OceanClientConfig;
 import com.redslovesgames.newestocean.client.config.OceanConfigManager;
 import com.redslovesgames.newestocean.client.shore.ShoreDistanceFieldCache;
@@ -198,6 +199,7 @@ public final class IrisWaterRuntimeBridge {
             float tickDelta = client.getRenderTickCounter().getTickDelta(true);
             double timeSeconds = (client.world.getTime() + tickDelta) / 20.0;
             OceanQuality quality = OceanWorldRenderer.quality();
+            int rendererWaveCap = ShaderCompatibility.current(config).visualWaveComponents(RENDERER_WAVE_CAP);
 
             OceanWaterFrameState frame = WATER_RUNTIME.buildFrame(
                 Math.max(0L, frameId++),
@@ -209,7 +211,7 @@ public final class IrisWaterRuntimeBridge {
                 client.world.getThunderGradient(tickDelta),
                 quality,
                 config,
-                RENDERER_WAVE_CAP,
+                rendererWaveCap,
                 OceanWaterInjectionState.RendererPath.IRIS
             );
 
