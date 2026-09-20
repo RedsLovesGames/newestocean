@@ -40,7 +40,7 @@ class OceanRenderFrameTest {
 
         assertEquals(20.025, frame.timeSeconds(), 1.0e-9);
         assertEquals(OceanQuality.HIGH, frame.plan().quality());
-        assertEquals(6, frame.plan().visualWaveComponents());
+        assertEquals(14, frame.plan().visualWaveComponents());
     }
 
     @Test
