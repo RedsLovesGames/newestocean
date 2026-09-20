@@ -84,7 +84,11 @@ The final primary surface must remain real Minecraft/Sodium/Iris water.
 
 The current tree has Vanilla and Small Ships integration but no Shippy Ships bridge.
 
-Add a safe optional Shippy Ships integration for the relevant Fabric 1.21.1 version if its classes/API can be resolved locally. Prefer reflection or isolated optional integration so Newest Ocean still launches without Shippy Ships. Reuse the common vessel physics rather than duplicating ocean forces.
+Current verified distribution target as of 2026-09-20: Modrinth project `oxBNHOmi`, Fabric 1.21.1 release `1.0.18`, Modrinth version ID `CLqqk2TN`. Recent 1.21.1 releases use Ingenium API, so inspect the actual resolved JAR/API before choosing a hook.
+
+Add a safe optional Shippy Ships integration for Fabric 1.21.1 if its classes/API can be resolved locally. Prefer reflection or isolated optional integration so Newest Ocean still launches without Shippy Ships. Reuse the common vessel physics rather than duplicating ocean forces.
+
+Also verify the current Small Ships assumption before changing it: `SmallShipsIntegration` only tracks entities that are both `BoatEntity` instances and have the `smallships` namespace. Keep it if that matches the installed 1.21.1 implementation; otherwise adapt it without creating duplicate force application.
 
 If the exact Shippy Ships hook cannot be established from available local dependencies/source, do not invent class names. Finish all other work, record the exact missing integration information, and include it in the human handoff.
 
@@ -106,12 +110,12 @@ Read these before broad repository exploration:
 
 ## Execution order
 
-1. Make the two corrected quality-preset unit expectations remain green.
+1. Keep the corrected quality-preset unit expectations green.
 2. Replace legacy compatibility/diagnostic assumptions with real injection state.
 3. Cut over `NewestOceanClient` so `OceanWorldRenderer` is no longer the primary surface.
 4. Integrate/retain whitecaps, shoreline visuals and wakes without a second full ocean surface.
 5. Remove dead overlay-only classes/resources after reference search.
-6. Add optional Shippy Ships integration if the actual 1.21.1 hook is resolvable.
+6. Verify Small Ships integration against the installed 1.21.1 implementation and add optional Shippy Ships integration if the actual hook is resolvable.
 7. Build the normal remapped mod JAR.
 8. STOP and request human visual/gameplay testing.
 
