@@ -13,8 +13,8 @@ class OceanMeshPlannerTest {
 
         assertTrue(potato.vertexCount() < 300);
         assertTrue(ultra.vertexCount() > potato.vertexCount() * 50);
-        assertEquals(2, potato.visualWaveComponents());
-        assertEquals(6, ultra.visualWaveComponents());
+        assertEquals(4, potato.visualWaveComponents());
+        assertEquals(24, ultra.visualWaveComponents());
     }
 
     @Test
