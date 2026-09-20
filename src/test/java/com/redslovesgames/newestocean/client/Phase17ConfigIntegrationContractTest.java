@@ -22,7 +22,7 @@ class Phase17ConfigIntegrationContractTest {
     }
 
     @Test
-    void clothConfigScreenExposesEveryPhase17Setting() throws IOException {
+    void clothConfigScreenExposesActiveRealWaterSettings() throws IOException {
         String source = Files.readString(Path.of(
             "src/main/java/com/redslovesgames/newestocean/client/config/NewestOceanConfigScreen.java"
         ));
@@ -30,14 +30,18 @@ class Phase17ConfigIntegrationContractTest {
         for (String setter : new String[] {
             "setOceanRenderingEnabled", "setQuality", "setAdaptiveQualityEnabled", "setTargetFps",
             "setAdaptiveMinQuality", "setAdaptiveMaxQuality", "setVisualWaveOverride",
-            "setRenderDistanceScale", "setOceanOpacity", "setWhitecapsEnabled", "setWhitecapIntensity",
-            "setWakesEnabled", "setWakeIntensity", "setShorelineEnabled", "setShorelineIntensity",
-            "setCustomShadersEnabled", "setDepthsVisualWaveCap", "setDepthsOceanAlpha",
-            "setDepthsWhitecapMultiplier", "setDepthsWakeMultiplier", "setDepthsShorelineMultiplier",
-            "setDiagnosticsOverlay"
+            "setWhitecapsEnabled", "setWhitecapIntensity", "setWakesEnabled", "setWakeIntensity",
+            "setShorelineEnabled", "setShorelineIntensity", "setCustomShadersEnabled",
+            "setDepthsVisualWaveCap", "setDepthsWhitecapMultiplier", "setDepthsWakeMultiplier",
+            "setDepthsShorelineMultiplier", "setDiagnosticsOverlay"
         }) {
             assertTrue(source.contains(setter), setter + " must be exposed in the config screen");
         }
+        assertTrue(source.contains("working.visualWaveOverride(), 0, OceanClientConfig.MAX_VISUAL_WAVES"));
+        assertTrue(source.contains("working.depthsVisualWaveCap(), 1, OceanClientConfig.MAX_VISUAL_WAVES"));
+        assertFalse(source.contains("Text.literal(\"Render Distance Scale\")"));
+        assertFalse(source.contains("Text.literal(\"Ocean Opacity\")"));
+        assertFalse(source.contains("Text.literal(\"DEPTHS ULTRA Ocean Alpha\")"));
         assertTrue(source.contains("OceanConfigManager.saveAndApply"));
     }
 

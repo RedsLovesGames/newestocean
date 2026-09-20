@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,6 +27,16 @@ class IrisWaterMixinRegistrationTest {
         assertFalse(IrisWaterRuntimeBridge.supportsVersion("1.8.14"));
         assertFalse(IrisWaterRuntimeBridge.supportsVersion("1.8.15"));
         assertFalse(IrisWaterRuntimeBridge.supportsVersion("1.9.0"));
+    }
+
+    @Test
+    void irisRealWaterRuntimeAppliesDepthsWaveCapInsteadOfDisablingGeometry() throws IOException {
+        String source = Files.readString(Path.of(
+            "src/main/java/com/redslovesgames/newestocean/client/compat/iris/IrisWaterRuntimeBridge.java"
+        ));
+
+        assertTrue(source.contains("ShaderCompatibility.current(config).visualWaveComponents(RENDERER_WAVE_CAP)"));
+        assertFalse(source.contains("rendererWaveCap = 0"));
     }
 
     private static String resourceText(String path) throws IOException {

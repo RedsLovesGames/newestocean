@@ -24,7 +24,7 @@ class OceanClientConfigTest {
         assertTrue(config.wakesEnabled());
         assertTrue(config.shorelineEnabled());
         assertTrue(config.customShadersEnabled());
-        assertEquals(4, config.depthsVisualWaveCap());
+        assertEquals(18, config.depthsVisualWaveCap());
         assertEquals(0.58, config.depthsOceanAlpha(), 1.0e-9);
         assertFalse(config.diagnosticsOverlay());
     }
@@ -49,7 +49,7 @@ class OceanClientConfigTest {
         assertEquals(240, config.targetFps());
         assertEquals(OceanQuality.LOW, config.adaptiveMinQuality());
         assertEquals(OceanQuality.ULTRA, config.adaptiveMaxQuality());
-        assertEquals(6, config.visualWaveOverride());
+        assertEquals(24, config.visualWaveOverride());
         assertEquals(2.0, config.renderDistanceScale(), 1.0e-9);
         assertEquals(0.25, config.oceanOpacity(), 1.0e-9);
         assertEquals(2.0, config.whitecapIntensity(), 1.0e-9);
@@ -61,11 +61,49 @@ class OceanClientConfigTest {
     }
 
     @Test
-    void visualWaveOverrideUsesAutoOrExplicitCount() {
+    void visualWaveOverrideUsesAutoOrExplicitCountAcrossNewRange() {
         OceanClientConfig config = OceanClientConfig.defaults();
-        assertEquals(4, config.effectiveVisualWaveComponents(4));
-        config.setVisualWaveOverride(6);
-        assertEquals(6, config.effectiveVisualWaveComponents(4));
+        assertEquals(10, config.effectiveVisualWaveComponents(10));
+        config.setVisualWaveOverride(24);
+        config.sanitize();
+        assertEquals(24, config.effectiveVisualWaveComponents(10));
+    }
+
+    @Test
+    void realWaterQualityPresetsScaleVisualShaderCostOnly() {
+        assertEquals(4, OceanQuality.POTATO.visualWaveComponents());
+        assertEquals(6, OceanQuality.LOW.visualWaveComponents());
+        assertEquals(10, OceanQuality.MEDIUM.visualWaveComponents());
+        assertEquals(14, OceanQuality.HIGH.visualWaveComponents());
+        assertEquals(24, OceanQuality.ULTRA.visualWaveComponents());
+    }
+
+    @Test
+    void legacyJsonPreservesOldVisualWaveValues() {
+        String legacyJson = """
+            {
+              "quality": "HIGH",
+              "visualWaveOverride": 6,
+              "depthsVisualWaveCap": 4,
+              "renderDistanceScale": 1.5,
+              "oceanOpacity": 0.7
+            }
+            """;
+
+        OceanClientConfig restored = OceanClientConfigCodec.decode(legacyJson);
+
+        assertEquals(OceanQuality.HIGH, restored.quality());
+        assertEquals(6, restored.visualWaveOverride());
+        assertEquals(4, restored.depthsVisualWaveCap());
+        assertEquals(1.5, restored.renderDistanceScale(), 1.0e-9);
+        assertEquals(0.7, restored.oceanOpacity(), 1.0e-9);
+    }
+
+    @Test
+    void clientJsonNeverDefinesServerAuthoritativePhysicalWaveCount() {
+        String json = OceanClientConfigCodec.encode(OceanClientConfig.defaults());
+        assertFalse(json.contains("physicalWave"));
+        assertFalse(json.contains("serverWave"));
     }
 
     @Test
@@ -80,7 +118,7 @@ class OceanClientConfigTest {
         OceanClientConfig config = OceanClientConfig.defaults();
         config.setQuality(OceanQuality.HIGH);
         config.setTargetFps(144);
-        config.setVisualWaveOverride(5);
+        config.setVisualWaveOverride(18);
         config.setWakesEnabled(false);
         config.setDepthsWakeMultiplier(1.25);
         config.setDiagnosticsOverlay(true);
@@ -90,7 +128,7 @@ class OceanClientConfigTest {
 
         assertEquals(OceanQuality.HIGH, restored.quality());
         assertEquals(144, restored.targetFps());
-        assertEquals(5, restored.visualWaveOverride());
+        assertEquals(18, restored.visualWaveOverride());
         assertFalse(restored.wakesEnabled());
         assertEquals(1.25, restored.depthsWakeMultiplier(), 1.0e-9);
         assertTrue(restored.diagnosticsOverlay());

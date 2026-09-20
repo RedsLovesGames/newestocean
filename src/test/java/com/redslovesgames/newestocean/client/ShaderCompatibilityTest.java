@@ -18,7 +18,7 @@ class ShaderCompatibilityTest {
         assertEquals(ShaderCompatibility.Mode.NORMAL_GPU, snapshot.mode());
         assertTrue(snapshot.allowCustomShaders());
         assertFalse(snapshot.skipWorldRender());
-        assertEquals(6, snapshot.visualWaveComponents(6));
+        assertEquals(24, snapshot.visualWaveComponents(24));
     }
 
     @Test
@@ -37,7 +37,7 @@ class ShaderCompatibilityTest {
         );
         assertEquals(ShaderCompatibility.Mode.IRIS_GENERIC, snapshot.mode());
         assertFalse(snapshot.allowCustomShaders());
-        assertEquals(6, snapshot.visualWaveComponents(6));
+        assertEquals(24, snapshot.visualWaveComponents(24));
         assertEquals(0.72, snapshot.oceanBaseAlpha(), 1.0e-9);
         assertEquals(1.0, snapshot.whitecapMultiplier(), 1.0e-9);
     }
@@ -50,7 +50,8 @@ class ShaderCompatibilityTest {
             );
             assertEquals(ShaderCompatibility.Mode.IRIS_DEPTHS_ULTRA, snapshot.mode());
             assertFalse(snapshot.allowCustomShaders());
-            assertEquals(4, snapshot.visualWaveComponents(6));
+            assertEquals(18, snapshot.visualWaveComponents(24));
+            assertEquals(6, snapshot.visualWaveComponents(6));
             assertEquals(3, snapshot.visualWaveComponents(3));
             assertEquals(0.58, snapshot.oceanBaseAlpha(), 1.0e-9);
             assertEquals(0.65, snapshot.whitecapMultiplier(), 1.0e-9);
@@ -98,9 +99,9 @@ class ShaderCompatibilityTest {
     }
 
     @Test
-    void depthsRuntimeTuningComesFromClientConfig() {
+    void depthsRuntimeTuningSupportsFullRealWaterWaveRange() {
         OceanClientConfig config = OceanClientConfig.defaults();
-        config.setDepthsVisualWaveCap(2);
+        config.setDepthsVisualWaveCap(24);
         config.setDepthsOceanAlpha(0.44);
         config.setDepthsWhitecapMultiplier(0.30);
         config.setDepthsWakeMultiplier(1.25);
@@ -109,7 +110,7 @@ class ShaderCompatibilityTest {
             new ShaderCompatibility.IrisState(true, true, true, false, "DEPTHS_ULTRA.zip"),
             config
         );
-        assertEquals(2, snapshot.visualWaveComponents(6));
+        assertEquals(24, snapshot.visualWaveComponents(24));
         assertEquals(0.44, snapshot.oceanBaseAlpha(), 1.0e-9);
         assertEquals(0.30, snapshot.whitecapMultiplier(), 1.0e-9);
         assertEquals(1.25, snapshot.wakeMultiplier(), 1.0e-9);
