@@ -57,4 +57,15 @@ class OceanVisualRegressionContractTest {
         assertTrue(fragmentShader.contains("in float oceanEdgeFade"));
         assertTrue(fragmentShader.contains("* oceanEdgeFade"));
     }
+
+    @Test
+    void legacyOverlayStaysWithinItsSixWaveGpuBudgetUntilCutover() throws IOException {
+        String renderer = Files.readString(Path.of(
+            "src/main/java/com/redslovesgames/newestocean/client/OceanWorldRenderer.java"
+        ));
+
+        assertTrue(renderer.contains(
+            "Math.min(compatibility.visualWaveComponents(requestedVisualWaves), OceanGpuWaveData.MAX_WAVES)"
+        ));
+    }
 }
