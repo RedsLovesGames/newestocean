@@ -1,11 +1,9 @@
-name: Build
+name: Build patched Newestocean
 
 on:
   push:
     branches:
-      - main
-      - 'feature/**'
-  pull_request:
+      - 'feature/chatgpt-physics-fix-build'
 
 permissions:
   contents: read
@@ -28,6 +26,13 @@ jobs:
         with:
           gradle-version: '9.4.1'
 
+      - name: Reconstruct patched source
+        shell: bash
+        run: |
+          cat .ci/source-*.b64 | base64 --decode > /tmp/newestocean-changed.tgz
+          echo 'c56f73b4e23736949c290c5bb2b60c79814336fffd44fa3d7b188e15074e5a23  /tmp/newestocean-changed.tgz' | sha256sum -c -
+          tar -xzf /tmp/newestocean-changed.tgz -C .
+
       - name: Build and test
         run: gradle build --stacktrace
 
@@ -35,6 +40,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: newestocean-dev
+          name: newestocean-physics-fix
           path: build/libs/*.jar
           if-no-files-found: error
