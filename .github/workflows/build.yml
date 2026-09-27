@@ -19,7 +19,7 @@ jobs:
 
       - name: Restore patched source snapshot
         run: |
-          cat .chatgpt-source/source-full-* > /tmp/newestocean-full-patched.b64
+          cat .chatgpt-source/source-full-* | tr -d '[:space:]' > /tmp/newestocean-full-patched.b64
           echo 'df4e9c2b51b93830e1bc9121d38dcb728b0ada9f0833e2716d5131ff7293c836  /tmp/newestocean-full-patched.b64' | sha256sum -c -
           base64 --decode /tmp/newestocean-full-patched.b64 > /tmp/newestocean-full-patched.tgz
           echo '378f991e98314fbfdb16e36d2f33f326786af74a156ca6bbca736ee4df031e8c  /tmp/newestocean-full-patched.tgz' | sha256sum -c -
