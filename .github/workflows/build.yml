@@ -17,34 +17,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore patched source snapshot
+      - name: Diagnose staged source chunks
         run: |
-          cat .chatgpt-source/source-full-* | tr -d '[:space:]' > /tmp/newestocean-full-patched.b64
-          echo 'df4e9c2b51b93830e1bc9121d38dcb728b0ada9f0833e2716d5131ff7293c836  /tmp/newestocean-full-patched.b64' | sha256sum -c -
-          base64 --decode /tmp/newestocean-full-patched.b64 > /tmp/newestocean-full-patched.tgz
-          echo '378f991e98314fbfdb16e36d2f33f326786af74a156ca6bbca736ee4df031e8c  /tmp/newestocean-full-patched.tgz' | sha256sum -c -
-          rm -rf src
-          rm -f build.gradle gradle.properties settings.gradle
-          tar xzf /tmp/newestocean-full-patched.tgz
-
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.4.1'
-
-      - name: Build and test
-        run: gradle build --stacktrace
-
-      - name: Upload mod jar
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: newestocean-physics-fix
-          path: build/libs/*.jar
-          if-no-files-found: error
+          wc -c .chatgpt-source/source-full-*
+          sha256sum .chatgpt-source/source-full-*
+          exit 1
