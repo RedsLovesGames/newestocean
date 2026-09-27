@@ -32,6 +32,9 @@ jobs:
           cat .ci/source-*.b64 | base64 --decode > /tmp/newestocean-changed.tgz
           echo 'c56f73b4e23736949c290c5bb2b60c79814336fffd44fa3d7b188e15074e5a23  /tmp/newestocean-changed.tgz' | sha256sum -c -
           tar -xzf /tmp/newestocean-changed.tgz -C .
+          base64 --decode .ci/current-missing.b64 > /tmp/newestocean-current-missing.tgz
+          echo 'a0f2df07862b06ca6410606f5d62d2e57da4a9470accb6faa7f7655b3bc92fb4  /tmp/newestocean-current-missing.tgz' | sha256sum -c -
+          tar -xzf /tmp/newestocean-current-missing.tgz -C .
 
       - name: Build and test
         run: gradle build --stacktrace
